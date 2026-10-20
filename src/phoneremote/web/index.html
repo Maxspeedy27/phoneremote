@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Phone Remote</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <button data-tab="slides">Slides</button>
+  <button data-tab="pad">Touchpad</button>
+</nav>
+
+<main>
+  <section id="tab-slides">
+    <div class="timer">
+      <div id="clock">00:00</div>
+      <button id="timer-toggle">Start</button>
+      <button id="timer-reset">Reset</button>
+    </div>
+    <div id="swipe">
+      <button id="prev" data-key="prev" data-label="&#9664; Back">&#9664;<small>Back</small></button>
+      <button id="next" data-key="next" data-label="Next &#9654;">&#9654;<small>Next</small></button>
+    </div>
+    <p class="hint">Swipe left for next, right for back</p>
+    <div class="grid">
+      <button data-key="start" data-label="Start slideshow">Start</button>
+      <button data-key="exit" data-label="Exit slideshow (Esc)">Exit</button>
+      <button data-key="blank" data-label="Blank screen (B)">Blank</button>
+    </div>
+    <div class="grid two">
+      <button data-key="first" data-label="First slide">&#9198; First</button>
+      <button data-key="last" data-label="Last slide">Last &#9197;</button>
+    </div>
+  </section>
+
+  <section id="tab-pad">
+    <div id="pad">Drag to move &middot; tap to click<br>Double-tap a text box: double-click + phone keyboard<br>Two-finger tap: right click &middot; two-finger drag: scroll</div>
+    <div class="grid">
+      <button data-click="left">Left</button>
+      <button id="hold">Hold</button>
+      <button data-click="right">Right</button>
+    </div>
+    <label class="speed">Speed <input id="speed" type="range" min="0.5" max="5" step="0.1"><span id="speed-val"></span></label>
+    <div class="grid">
+      <button data-key="back" data-label="Browser back">&#8592; Back</button>
+      <button data-key="pageup" data-label="Page Up">Page Up</button>
+      <button data-key="pagedown" data-label="Page Down">Page Down</button>
+      <button data-key="zoomout" data-label="Zoom out">Zoom &minus;</button>
+      <button data-key="zoomreset" data-label="Zoom reset">100%</button>
+      <button data-key="zoomin" data-label="Zoom in">Zoom +</button>
+    </div>
+    <button data-key="fullscreen" data-label="Fullscreen">Fullscreen</button>
+    <form id="type-form">
+      <input id="text" type="text" placeholder="Type text for the laptop" autocomplete="off"
+             autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+      <button type="submit">Send</button>
+    </form>
+    <div class="grid two">
+      <button data-key="enter" data-label="Enter">Enter &#9166;</button>
+      <button data-key="backspace" data-label="Backspace">&#9003; Backspace</button>
+    </div>
+  </section>
+</main>
+
+<div id="status">Connecting&hellip;</div>
+
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+  <h1 id="overlay-title">Connecting&hellip;</h1>
+  <div id="overlay-code"></div>
+  <p id="overlay-text"></p>
+  <button id="overlay-retry" hidden>Try again</button>
+</div>
+
+<script src="/static/nacl-fast.min.js"></script>
+<script src="/static/crypto.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
