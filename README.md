@@ -29,19 +29,51 @@ python -m venv .venv
 .venv/bin/phoneremote               # or: python -m phoneremote
 ```
 
-Options: `--port 8765`, `--backend auto|pyautogui|uinput`, `--light-qr`,
+Options: `--port 8765`, `--backend auto|pyautogui|uinput`, `--ip ADDRESS`
+(the laptop address to put in the QR code), `--light-qr`,
 `--forget` (unpair the remembered phone), `--no-confirm` (skip the approval
 prompt; less secure).
 
 ## Pairing
 
 1. Start Phone Remote and scan the QR code with the phone's camera. The phone
-   must be on the same Wi-Fi as the laptop.
+   must be on the same Wi-Fi as the laptop, or connected to it by Bluetooth
+   tethering (see below).
 2. The phone shows a 6-digit code, and the laptop asks whether to allow it.
    Check that the codes match, then type `y`.
 3. The phone is now paired and remembered. Next time, simply reopen the page
    (bookmark it, or add it to the home screen). Pairing another phone
    replaces the first one.
+
+## No shared Wi-Fi? Use Bluetooth tethering
+
+Phone Remote also works where there's no Wi-Fi, or where the Wi-Fi blocks
+devices from seeing each other (common in hotels and conference venues). Let
+the laptop join the phone's network over Bluetooth:
+
+1. Pair the phone and laptop in the laptop's Bluetooth settings, if you haven't before.
+2. On the phone, turn on Bluetooth tethering: on Android, Settings → Network
+   & internet → Hotspot & tethering → Bluetooth tethering; on iPhone, Settings
+   → Personal Hotspot → Allow Others to Join.
+3. Connect the laptop to it. On Linux, open Bluetooth settings, choose the
+   phone and turn on its network (access point) option. On macOS, choose the
+   phone in the Bluetooth menu and connect to its network. On Windows, open
+   Bluetooth devices → Join a Personal Area Network, then the phone →
+   Connect using → Access point.
+4. Start Phone Remote and scan the QR code as usual.
+
+On Linux, Phone Remote recognises the Bluetooth connection and puts its address
+in the QR code ("connected over Bluetooth tethering"). On macOS and Windows, or
+if the phone can't open the link, use one of the other addresses listed under
+the QR code: `phoneremote --ip 192.168.44.7`.
+
+Things to know:
+
+- The phone saves its pairing per address, so a phone paired over Wi-Fi needs
+  to pair once more when it opens the Bluetooth address (and the other way round).
+- The laptop may send its internet traffic through the phone while tethered,
+  which uses mobile data. Some carriers block tethering on certain plans.
+- The touchpad may feel slightly less responsive than over Wi-Fi.
 
 ## Security model
 
