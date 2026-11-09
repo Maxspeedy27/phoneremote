@@ -10,6 +10,7 @@ const SCROLL_GAIN = 1.5;
 const TAP_MAX_MS = 250, TAP_SLOP_PX = 10;
 const DOUBLE_TAP_MS = 350, DOUBLE_TAP_SLOP_PX = 30;
 const PAIR_TIMEOUT_MS = 75000; // the laptop user gets 60 s to approve
+const MAX_BATCH_OPS = 150;     // below the laptop's limit of 200 per message
 
 // Opened from the internet relay (https://<relay>/r/<room>/) or from the
 // laptop itself on the local network (http://<laptop>:8765/)?
@@ -28,11 +29,17 @@ const store = {
   },
 };
 
-const statusEl = $('#status');
+const statusEl = $('#status'), topbar = $('.topbar');
+// The dot in the top bar: amber while connecting, green once the laptop
+// answers, red after an error.
 function setStatus(msg, isError) {
   statusEl.textContent = msg;
   statusEl.classList.toggle('err', !!isError);
+  topbar.classList.toggle('err', !!isError);
+  if (isError) topbar.classList.remove('linked');
 }
+function setLinked() { topbar.classList.add('linked'); }
+document.documentElement.classList.toggle('https', location.protocol === 'https:');
 function buzz(ms) {
   try { if (navigator.vibrate) navigator.vibrate(ms || 12); } catch (e) {}
 }
@@ -225,7 +232,8 @@ function connect() {
         return;
       }
       hideOverlay();
-      setStatus('Connected to ' + (device.host || 'laptop') + (location.protocol === 'https:' ? ' 🔒' : ''));
+      setStatus('Connected to ' + (device.host || 'laptop'));
+      setLinked();
       if (screenOn) frameLoop();
     } catch (e) {
       if (e.code === 'offline') showOverlay('The laptop is offline', OFFLINE_TEXT, null, true);
@@ -270,8 +278,11 @@ async function pump() {
     connect();
     return;
   }
-  const ops = queue, label = pendingLabel;
-  queue = []; pendingLabel = '';
+  // The laptop takes at most 200 operations per message; a long paste or a big
+  // deletion while typing live can queue more, so send them in slices.
+  const ops = queue.splice(0, MAX_BATCH_OPS);
+  const label = queue.length ? '' : pendingLabel;
+  if (!queue.length) pendingLabel = '';
   inflight = true;
   try {
     const msg = seal(deviceKey, { t: 'cmd', s: session, q: ++seq, ops });
@@ -279,6 +290,7 @@ async function pump() {
     await request('/api/cmd', msg, 4000);
     if (label) setStatus(label);
     else if (statusEl.classList.contains('err')) setStatus('Connected');
+    setLinked();
   } catch (e) {
     if (e.code === 'session' || e.code === 'unpaired') connect();
     else if (e.code === 'offline') laptopWentOffline();
@@ -295,7 +307,10 @@ window.addEventListener('hashchange', () => { takePairingKeyFromUrl(); if (pairi
 
 // ---------- Tabs ----------
 function showTab(name) {
-  $$('nav button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  $$('nav button[data-tab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === name);
+    if (b.dataset.tab === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
   $$('main section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
   store.set('tab', name);
 }
@@ -362,6 +377,7 @@ const ALERTS = [   // [ms left, vibration pattern, message, minimum talk length]
   [0, [600, 200, 600, 200, 600], 'Time is up', 0],
 ];
 const clockEl = $('#clock'), timerBtn = $('#timer-toggle'), timerEl = $('.timer');
+const timerLabel = $('#timer-label');
 const lengthEl = $('#talk-length');
 let timerStart = store.get('timerStart', null);   // epoch ms while running
 let timerBanked = store.get('timerBanked', 0);    // ms accumulated before last start
@@ -403,13 +419,17 @@ function renderTimer() {
       alertsDone.push(...due.map(a => a[0])); saveTimer();
       try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
       timerEl.classList.remove('flash'); void timerEl.offsetWidth; timerEl.classList.add('flash');
-      setStatus('⏰ ' + message);
+      setStatus(message);
     }
   } else {
     clockEl.textContent = fmt(elapsed);
     timerEl.classList.remove('over', 'warn');
   }
-  timerBtn.textContent = timerStart ? 'Pause' : (elapsed ? 'Resume' : 'Start');
+  const label = timerStart ? 'Pause' : (elapsed ? 'Resume' : 'Start');
+  if (timerLabel.textContent !== label) {
+    timerLabel.textContent = label;
+    timerBtn.setAttribute('aria-label', label + ' timer');
+  }
   timerBtn.classList.toggle('running', !!timerStart);
 }
 timerBtn.addEventListener('click', () => {
@@ -641,29 +661,82 @@ function touchEnd(e) {
 pad.addEventListener('touchend', touchEnd, { passive: false });
 pad.addEventListener('touchcancel', touchEnd, { passive: false });
 
-// ---------- Typing ----------
-function sendText(withEnter, el = textEl) {
-  const s = el.value;
-  if (!s && !withEnter) return;
-  buzz();
-  const shown = s.length > 30 ? s.slice(0, 30) + '…' : s;
-  if (s) send({ a: 'type', s }, 'Typed: ' + shown);
-  if (withEnter) send({ a: 'key', k: 'enter' }, s ? 'Typed + Enter: ' + shown : 'Enter');
-  el.value = '';
+// ---------- Typing (live) ----------
+// Whatever changes in a text box is typed on the laptop straight away: added
+// letters are typed, removed ones become Backspace presses. Comparing the old
+// and new text (rather than watching keys) also handles autocorrect, tapped
+// suggestions, pasting and edits in the middle of the text, which phone
+// keyboards report only as "the text changed".
+//
+// The box always holds an invisible character at the start. Pressing
+// Backspace in an otherwise empty box deletes it, which is the only way to
+// notice that press on Android, and we pass it on to the laptop.
+const SENTINEL = '​';
+const MAX_TYPE_CHARS = 500;          // per operation; the laptop accepts up to 2000
+const RESET_AFTER_CHARS = 60;        // start a fresh box after a word this far in
+const visible = v => v.split(SENTINEL).join('');
+
+function liveTyping(el) {
+  let last = '';                      // what the laptop has been sent, without the sentinel
+  // The box is never truly empty, so the browser's placeholder never shows: draw our own.
+  const ph = document.createElement('span');
+  ph.className = 'ph'; ph.textContent = el.placeholder; ph.setAttribute('aria-hidden', 'true');
+  el.after(ph);
+  const markEmpty = () => el.form.classList.toggle('empty', !visible(el.value));
+  el.addEventListener('input', markEmpty);
+  function reset() {
+    last = '';
+    el.value = SENTINEL;
+    try { el.setSelectionRange(1, 1); } catch (e) {}
+    markEmpty();
+  }
+  function typeDiff(now) {
+    let p = 0;
+    while (p < last.length && p < now.length && last[p] === now[p]) p++;
+    const removed = last.length - p, added = now.slice(p);
+    for (let i = 0; i < removed; i++) send({ a: 'key', k: 'backspace' });
+    for (let i = 0; i < added.length; i += MAX_TYPE_CHARS) send({ a: 'type', s: added.slice(i, i + MAX_TYPE_CHARS) });
+    const tail = now.length > 24 ? '…' + now.slice(-24) : now;
+    if (removed || added) pendingLabel = 'Typing: ' + (tail || '(deleted)');
+    last = now;
+  }
+  el.addEventListener('input', () => {
+    if (!session) {                   // nothing reaches the laptop: don't pretend it did
+      reset();
+      setStatus('Not connected to the laptop', true);
+      connect();
+      return;
+    }
+    const now = visible(el.value);
+    if (!el.value.startsWith(SENTINEL)) {
+      // The invisible character went: Backspace in an empty box, or a
+      // selection that included it. Either way the text before it is gone.
+      if (now === last) send({ a: 'key', k: 'backspace' }, 'Backspace');
+      else typeDiff(now);
+      el.value = SENTINEL + now;
+      try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {}
+      return;
+    }
+    typeDiff(now);
+    // Keep the box short, so later corrections stay small; the laptop keeps the text.
+    if (now.length > RESET_AFTER_CHARS && /\s$/.test(now)) reset();
+  });
+  // Enter/Go on the phone keyboard presses Enter on the laptop.
+  el.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    send({ a: 'key', k: 'enter' }, 'Enter');
+    reset();
+  });
+  el.form.addEventListener('submit', e => { e.preventDefault(); });
+  // Keep the cursor after the invisible character.
+  el.addEventListener('focus', () => {
+    if (!el.value.startsWith(SENTINEL)) reset();
+    requestAnimationFrame(() => { try { if (el.selectionStart === 0) el.setSelectionRange(1, 1); } catch (e) {} });
+  });
+  reset();
 }
-// Send button: type the text only. Keep the keyboard open for more typing.
-$('#type-form').addEventListener('submit', e => {
-  e.preventDefault();
-  sendText(false);
-  textEl.focus();
-});
-// The phone keyboard's Enter/Go key: type the text and press Enter, so a
-// search box runs the search in one step.
-textEl.addEventListener('keydown', e => {
-  if (e.key !== 'Enter' || e.isComposing) return;
-  e.preventDefault();
-  sendText(true);
-});
+liveTyping(textEl);
 
 // ---------- Live view of the laptop screen ----------
 // Frames are requested one at a time, only while the view is open and the
@@ -846,12 +919,7 @@ $('#screen-kbd').addEventListener('click', () => {
   typeForm.hidden = !typeForm.hidden;
   if (!typeForm.hidden) screenText.focus();
 });
-typeForm.addEventListener('submit', e => { e.preventDefault(); sendText(false, screenText); screenText.focus(); });
-screenText.addEventListener('keydown', e => {
-  if (e.key !== 'Enter' || e.isComposing) return;
-  e.preventDefault();
-  sendText(true, screenText);
-});
+liveTyping(screenText);
 $('#screen-bksp').addEventListener('click', () => { buzz(); send({ a: 'key', k: 'backspace' }, 'Backspace'); screenText.focus(); });
 
 function resetZoom() { zoom.s = 1; zoom.tx = 0; zoom.ty = 0; applyZoom(); }
