@@ -1,7 +1,7 @@
 import unittest
 
-from phoneremote.commands import MAX_MOVE, MAX_OPS, run_ops
-from phoneremote.shortcuts import SHORTCUTS
+from kumpas.commands import MAX_MOVE, MAX_OPS, run_ops
+from kumpas.shortcuts import SHORTCUTS
 
 from helpers import FakeBackend
 
@@ -31,6 +31,19 @@ class CommandsTest(unittest.TestCase):
     def test_moves_are_clamped(self):
         self.assertEqual(self.run_ok({"a": "move", "dx": 10**9, "dy": -10**9}),
                          [("move", MAX_MOVE, -MAX_MOVE)])
+
+    def test_absolute_points_are_clamped_and_need_a_screen(self):
+        class Screen:
+            def point(self, monitor, fx, fy):
+                return (monitor * 10 + fx, fy)
+        run_ops(self.backend, [{"a": "abs", "x": 1.7, "y": -3, "m": 2}, {"a": "abs", "x": 0.25, "y": 0.5, "m": 1}],
+                Screen())
+        self.assertEqual(self.backend.calls, [("move_to", 21.0, 0.0), ("move_to", 10.25, 0.5)])
+        for bad in ({"a": "abs", "x": "1", "y": 0, "m": 1}, {"a": "abs", "x": True, "y": 0, "m": 1}):
+            with self.subTest(op=bad), self.assertRaises(ValueError):
+                run_ops(self.backend, [bad], Screen())
+        with self.assertRaises(ValueError):
+            run_ops(self.backend, [{"a": "abs", "x": 0, "y": 0, "m": 1}])   # no screen view
 
     def test_hold_then_click_releases_first(self):
         calls = self.run_ok({"a": "down"}, {"a": "down"}, {"a": "click", "b": "left"}, {"a": "up"})

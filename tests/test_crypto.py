@@ -4,9 +4,9 @@ import subprocess
 import unittest
 from importlib.resources import files
 
-from phoneremote.crypto import CryptoError, b64d, b64e, new_key, pairing_code, seal, unseal
+from kumpas.crypto import CryptoError, b64d, b64e, new_key, pairing_code, seal, unseal
 
-CRYPTO_JS = files("phoneremote") / "web" / "crypto.js"
+CRYPTO_JS = files("kumpas") / "web" / "crypto.js"
 
 
 class CryptoTest(unittest.TestCase):

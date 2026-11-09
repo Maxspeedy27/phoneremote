@@ -1,8 +1,8 @@
 import unittest
 from unittest import mock
 
-from phoneremote.backends import pyautogui_backend as pb
-from phoneremote.shortcuts import SHORTCUTS
+from kumpas.backends import pyautogui_backend as pb
+from kumpas.shortcuts import SHORTCUTS
 
 
 class FakeGui:

@@ -1,4 +1,7 @@
-# Phone Remote
+# Kumpas
+
+*Kumpas* (Filipino): the hand gesture a conductor uses to lead the music.
+(Formerly called Phone Remote.)
 
 Use your phone's browser as a remote control for your laptop: next/back for
 slides, a touchpad, scrolling, zoom and typing. Nothing to install on the
@@ -20,10 +23,17 @@ or Bluetooth tethering.
 - **Media:** play/pause, previous/next track, volume and mute for whatever is
   playing on the laptop, plus rewind/forward/space for video players.
 - **Screen view:** a live, encrypted picture of the laptop screen at the top
-  of the phone, so you can see the projected slide while facing the audience,
-  or use the touchpad without looking up. Tap it to enlarge; switch monitors.
-  Only sent while the phone is looking at it, and the laptop shows when it is.
-  (Windows, macOS, Linux on X11; not yet on Wayland.)
+  of the phone, with the laptop's mouse pointer drawn on it, so you can see the
+  projected slide while facing the audience, or use the touchpad without
+  looking up. Tap it to enlarge; switch monitors. Only sent while the phone is
+  looking at it, and the laptop shows when it is. (Windows, macOS, Linux on
+  X11; not yet on Wayland.)
+- **Touchscreen:** the screen view's **Touch** button goes fullscreen (turn
+  the phone sideways) and the picture becomes a touchscreen for the laptop:
+  tap to click there, tap twice to double-click, hold to right-click, drag to
+  drag, two fingers to scroll, pinch to zoom in on small targets. A keyboard
+  button types into whatever you clicked. (Needs the pyautogui input method,
+  the default everywhere except Wayland.)
 - **Tilt to point:** over HTTPS, hold the pointer strip and move the phone like
   a laser pointer; let go and the cursor stays put.
 - **Touchpad:** move, tap to click, two-finger tap to right-click, two-finger
@@ -39,16 +49,16 @@ Works on Windows, macOS and Linux (X11 and Wayland).
 
 Download the installer for your laptop from the Releases page:
 
-- **Windows:** `PhoneRemote-<version>-windows-setup.exe`. It also lets phones
+- **Windows:** `Kumpas-<version>-windows-setup.exe`. It also lets phones
   through the firewall on private networks, so there's no firewall prompt.
-- **macOS:** `PhoneRemote-<version>-macos-arm64.dmg`; drag Phone Remote to
+- **macOS:** `Kumpas-<version>-macos-arm64.dmg`; drag Kumpas to
   Applications. Until the app is signed, open it the first time with
   right-click → Open.
-- **Linux (Debian, Ubuntu, Mint):** `sudo apt install ./phoneremote_<version>_amd64.deb`.
+- **Linux (Debian, Ubuntu, Mint):** `sudo apt install ./kumpas_<version>_amd64.deb`.
   It also installs the permission rule that Wayland desktops need, so there
   are no setup commands.
 
-Then start **Phone Remote** from the Start menu, Launchpad or app menu. It
+Then start **Kumpas** from the Start menu, Launchpad or app menu. It
 opens a control panel in your browser with the QR code, pairing requests
 (Allow/Refuse), the paired phone, and switches for screen view and HTTPS.
 Opening the app again while it runs just shows the panel; Quit is at the bottom.
@@ -60,8 +70,8 @@ Python 3.9+.
 ```bash
 python -m venv .venv
 .venv/bin/pip install -e .          # Windows: .venv\Scripts\pip install -e .
-.venv/bin/phoneremote               # terminal version (or: python -m phoneremote)
-.venv/bin/phoneremote --app         # desktop app with the browser control panel
+.venv/bin/kumpas               # terminal version (or: python -m kumpas)
+.venv/bin/kumpas --app         # desktop app with the browser control panel
 ```
 
 Options: `--port 8765`, `--backend auto|pyautogui|uinput`, `--ip ADDRESS`
@@ -72,9 +82,8 @@ remembered phone), `--no-confirm` (skip the approval prompt; less secure).
 
 ## Pairing
 
-1. Start Phone Remote and scan the QR code with the phone's camera. The phone
-   must be on the same Wi-Fi as the laptop, or connected to it by Bluetooth
-   tethering (see below).
+1. Start Kumpas and scan the QR code with the phone's camera (see
+   *Connecting* below for which code).
 2. The phone shows a 6-digit code, and the laptop asks whether to allow it.
    Check that the codes match, then click Allow in the control panel (or type
    `y` in the terminal version).
@@ -82,9 +91,36 @@ remembered phone), `--no-confirm` (skip the approval prompt; less secure).
    (bookmark it, or add it to the home screen). Pairing another phone
    replaces the first one.
 
-## No shared Wi-Fi? Use Bluetooth tethering
+## Connecting
 
-Phone Remote also works where there's no Wi-Fi, or where the Wi-Fi blocks
+- **Any network (internet relay):** with a relay set up (see
+  [relay/README.md](relay/README.md)), the control panel's **Any network**
+  code works wherever both devices have internet: the phone on mobile data,
+  a different Wi-Fi, or venue Wi-Fi that keeps devices apart. The page comes
+  from the relay over real HTTPS, and everything stays end-to-end encrypted.
+  If the laptop goes offline, the phone says so and reconnects by itself.
+  Turn it off in the panel's settings (or `--no-relay`) for local-only use.
+- **Same Wi-Fi:** the **Same Wi-Fi / no internet** code connects directly,
+  with no internet needed.
+- **No internet at all:** link the phone and laptop directly, then use the
+  **Same Wi-Fi / no internet** code. Kumpas recognises these links and
+  puts the right address in the code:
+  - *Phone hotspot* (easiest): turn on the phone's hotspot and join it from
+    the laptop. (An iPhone's hotspot needs a mobile plan that allows it.)
+  - *USB cable*: plug the phone in, then Android: Settings → Hotspot &
+    tethering → USB tethering; iPhone: Settings → Personal Hotspot → Allow
+    Others to Join (Windows also needs Apple's Apple Devices app). USB links
+    are recognised by interface on Linux and by the iPhone's hotspot
+    addresses everywhere; elsewhere pick the address in the panel.
+  - *Bluetooth tethering*: see below.
+
+The phone keeps a separate pairing for the relay page and the local page, as
+browsers treat them as different sites; pairing one replaces the other on
+the laptop (one paired phone at a time).
+
+### Bluetooth tethering
+
+Kumpas also works where there's no Wi-Fi, or where the Wi-Fi blocks
 devices from seeing each other (common in hotels and conference venues). Let
 the laptop join the phone's network over Bluetooth:
 
@@ -97,12 +133,12 @@ the laptop join the phone's network over Bluetooth:
    phone in the Bluetooth menu and connect to its network. On Windows, open
    Bluetooth devices → Join a Personal Area Network, then the phone →
    Connect using → Access point.
-4. Start Phone Remote and scan the QR code as usual.
+4. Start Kumpas and scan the QR code as usual.
 
-On Linux, Phone Remote recognises the Bluetooth connection and puts its address
+On Linux, Kumpas recognises the Bluetooth connection and puts its address
 in the QR code ("connected over Bluetooth tethering"). On macOS and Windows, or
 if the phone can't open the link, use one of the other addresses listed under
-the QR code: `phoneremote --ip 192.168.44.7`.
+the QR code: `kumpas --ip 192.168.44.7`.
 
 Things to know:
 
@@ -113,6 +149,11 @@ Things to know:
 - The touchpad may feel slightly less responsive than over Wi-Fi.
 
 ## Security model
+
+The internet relay passes along encrypted messages it can't read: the pairing
+key in the QR code's `#fragment` never reaches it, and a laptop must prove it
+owns its room with a secret kept in the config folder (`relay.json`).
+
 
 Designed so that other people on the same Wi-Fi, or someone who photographs
 the QR code on a projected screen, can't control the laptop or read typed text.
@@ -133,8 +174,8 @@ the QR code on a projected screen, can't control the laptop or read typed text.
   DNS rebinding) and needs a secret token per launch, so neither other devices
   nor other websites open in the same browser can approve a pairing.
 - The paired phone's key is stored owner-only in the user config folder
-  (`~/.config/phoneremote/` on Linux, `~/Library/Application Support/PhoneRemote/`
-  on macOS, `%APPDATA%\PhoneRemote\` on Windows).
+  (`~/.config/kumpas/` on Linux, `~/Library/Application Support/Kumpas/`
+  on macOS, `%APPDATA%\Kumpas\` on Windows).
 
 ## HTTPS
 
@@ -164,24 +205,24 @@ for example for a domain name that points at the laptop's address.
 networks, and make sure your Wi-Fi's profile is *Private*. To add the rule
 manually (Administrator terminal):
 
-    netsh advfirewall firewall add rule name="Phone Remote" dir=in action=allow protocol=TCP localport=8765 profile=private
+    netsh advfirewall firewall add rule name="Kumpas" dir=in action=allow protocol=TCP localport=8765 profile=private
 
 **macOS:** allow the app you run it from (Terminal, iTerm, …) under System
-Settings → Privacy & Security → Accessibility, then restart Phone Remote.
+Settings → Privacy & Security → Accessibility, then restart Kumpas.
 "Start" sends Cmd+Shift+Return (PowerPoint for Mac); for Keynote change
-`start` in `src/phoneremote/shortcuts.py` to `("option", "command", "p")`.
+`start` in `src/kumpas/shortcuts.py` to `("option", "command", "p")`.
 
-**macOS screen view:** allow Phone Remote under System Settings → Privacy &
+**macOS screen view:** allow Kumpas under System Settings → Privacy &
 Security → Screen Recording (macOS asks the first time the phone opens the
 screen view), then restart it.
 
 **Linux, X11:** uses pyautogui. Non-ASCII typing needs `xclip`.
 
-**Linux, Wayland:** Wayland ignores pyautogui, so Phone Remote creates a virtual
+**Linux, Wayland:** Wayland ignores pyautogui, so Kumpas creates a virtual
 keyboard and mouse through `/dev/uinput`. Allow the logged-in user to do that
 once:
 
-    echo 'KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/60-phone-remote-uinput.rules
+    echo 'KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/60-kumpas-uinput.rules
     sudo udevadm control --reload-rules
     sudo udevadm trigger --name-match=uinput
 
@@ -201,13 +242,14 @@ when Node.js is installed.
 
 Layout:
 
-    src/phoneremote/
+    src/kumpas/
       cli.py          entry points: terminal version and desktop app (--app)
       runtime.py      the running remote: server, pairing, address, HTTPS switch
       hostui.py       desktop app control panel (served on 127.0.0.1)
       server.py       phone HTTP(S) server and routes
       screen.py       screen view snapshots (mss + Pillow)
       tls.py          self-signed or user-supplied HTTPS certificates
+      relay.py        keeping the laptop connected to the internet relay
       pairing.py      pairing, device storage, sessions, replay protection
       crypto.py       secretbox helpers shared with web/crypto.js
       commands.py     validating and applying phone operations
@@ -215,6 +257,7 @@ Layout:
       backends/       pyautogui and uinput input backends
       web/            phone page (HTML, CSS, JS), icons, vendored tweetnacl
       web/panel/      control panel page
+    relay/            internet relay: Cloudflare Worker + Durable Object (see relay/README.md)
     packaging/        PyInstaller spec, build script, Linux/Windows installer files, icons
     tests/
 

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Kumpas</title>
+<link rel="stylesheet" href="/panel.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/></symbol>
+    <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01M8.5 16.4a5 5 0 0 1 7 0M2 8.8a15 15 0 0 1 4.2-2.6M10.7 5.1A15 15 0 0 1 22 8.8M5 12.9a10 10 0 0 1 5.2-2.8M2 2l20 20"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#0f1115"/><rect x="128" y="104" width="104" height="304" rx="34" fill="#4f8cff"/><rect x="164" y="370" width="32" height="12" rx="6" fill="#0f1115"/><path d="M384 120L272 256L384 392" fill="none" stroke="#fff" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1>Kumpas <small id="version"></small></h1>
+  </div>
+  <span id="pill" class="pill" role="status">Starting&hellip;</span>
+</header>
+
+<main>
+  <div id="problem" class="card problem" role="alert" hidden></div>
+  <div id="access" class="card warn" hidden>
+    <svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>
+    <div>
+      <b>Allow Kumpas to control this Mac.</b>
+      <p>Turn on Kumpas under System Settings &rarr; Privacy &amp; Security &rarr; Accessibility, then restart the app.</p>
+      <button id="access-open">Open Accessibility settings</button>
+    </div>
+  </div>
+
+  <section id="pending" class="card approve" hidden aria-labelledby="pending-title">
+    <div class="approve-body">
+      <div class="approve-ic"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg></div>
+      <div class="approve-text">
+        <h2 id="pending-title"><span id="pending-name"></span> wants to control this laptop</h2>
+        <p>Allow it only if the phone shows this same code.</p>
+      </div>
+      <div id="pending-code" class="code"></div>
+    </div>
+    <div class="approve-actions">
+      <button id="allow" class="primary big">Allow</button>
+      <button id="refuse" class="big">Refuse</button>
+      <div class="countdown"><div class="bar"><span id="pending-bar"></span></div><span id="pending-left" class="muted"></span></div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section class="card pair" id="pair-card" aria-labelledby="pair-title">
+      <h2 class="card-title"><svg class="ic" aria-hidden="true"><use href="#i-qr"/></svg><span id="pair-title">Pair your phone</span></h2>
+      <div class="tabs" id="qr-tabs" role="tablist" hidden>
+        <button role="tab" data-mode="relay">Any network</button>
+        <button role="tab" data-mode="local">Same Wi-Fi / no internet</button>
+      </div>
+      <p class="muted" id="pair-help"></p>
+      <div class="qr"><img id="qr" alt="QR code to pair a phone" width="260" height="260"></div>
+      <ol class="steps">
+        <li><span>Open the phone's camera and point it at the code</span></li>
+        <li><span>Tap the link that appears</span></li>
+        <li><span>Click <b>Allow</b> here when the codes match</span></li>
+      </ol>
+      <div id="local-only" class="address">
+        <label class="field" for="address">Laptop address</label>
+        <select id="address"></select>
+        <p class="muted small">If the phone can't open the page, choose another address, or type <code id="base"></code> in the phone's browser.</p>
+      </div>
+      <details id="offline-help">
+        <summary><svg class="ic" aria-hidden="true"><use href="#i-wifi-off"/></svg>No internet? Connect without it</summary>
+        <ol>
+          <li><b>Phone hotspot</b> (easiest): turn on Hotspot on the phone (in the quick settings or Control Center), join its Wi-Fi from this laptop, then scan the code under <i>Same Wi-Fi / no internet</i>.</li>
+          <li><b>USB cable</b>: plug the phone into this laptop. Android: Settings &rarr; Hotspot &amp; tethering &rarr; USB tethering. iPhone: Settings &rarr; Personal Hotspot &rarr; Allow Others to Join (Windows also needs Apple's Apple Devices app). Then scan the same code.</li>
+          <li><b>Bluetooth</b>: pair the phone in this laptop's Bluetooth settings and turn on Bluetooth tethering on the phone.</li>
+        </ol>
+        <p class="muted small">Kumpas notices these connections and puts the right address in the code.</p>
+      </details>
+    </section>
+
+    <div class="side">
+      <div class="stack">
+        <section class="card device-card" aria-labelledby="device-title">
+          <div class="device-ic"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg></div>
+          <div class="device-text">
+            <h2 id="device-title">Paired phone</h2>
+            <p id="device">None yet.</p>
+          </div>
+          <button id="forget" class="danger-ghost" hidden>Forget</button>
+        </section>
+
+        <section class="card" aria-labelledby="settings-title">
+          <h2 class="card-title" id="settings-title"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg>Settings</h2>
+          <div class="setting" id="relay-setting" hidden>
+            <label class="setting-row"><span class="setting-name">Connect over the internet</span>
+              <input type="checkbox" id="relay-on" class="toggle" role="switch"></label>
+            <p class="setting-note" id="relay-note"></p>
+          </div>
+          <div class="setting">
+            <label class="setting-row"><span class="setting-name">Let the phone see this screen</span>
+              <input type="checkbox" id="screen-on" class="toggle" role="switch"></label>
+            <p class="setting-note" id="screen-note">Shows a live picture of the laptop screen on the phone, encrypted, only while you look at it.</p>
+            <p class="live" id="viewing" hidden><span class="dot" aria-hidden="true"></span>The phone is viewing your screen</p>
+          </div>
+          <div class="setting">
+            <label class="setting-row"><span class="setting-name">Secure connection (HTTPS)</span>
+              <input type="checkbox" id="https-on" class="toggle" role="switch"></label>
+            <p class="setting-note" id="https-note">Lets the phone keep its screen on during a talk and point by tilting. The phone shows a &ldquo;connection not private&rdquo; warning the first time: tap Advanced, then Proceed. You'll pair again once.</p>
+            <p class="setting-note mono" id="fingerprint" hidden></p>
+          </div>
+        </section>
+      </div>
+
+      <section class="card activity" aria-labelledby="log-title">
+        <h2 class="card-title" id="log-title"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>Activity</h2>
+        <ul id="log"></ul>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    <span class="muted small" id="backend"></span>
+    <span class="muted small footer-note"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>Everything between the phone and this laptop is end-to-end encrypted.</span>
+    <button id="quit" class="ghost"><svg class="ic" aria-hidden="true"><use href="#i-power"/></svg>Quit Kumpas</button>
+  </footer>
+</main>
+
+<div id="stopped" hidden>
+  <svg class="logo big" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#0f1115"/><rect x="128" y="104" width="104" height="304" rx="34" fill="#4f8cff"/><rect x="164" y="370" width="32" height="12" rx="6" fill="#0f1115"/><path d="M384 120L272 256L384 392" fill="none" stroke="#fff" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h1>Kumpas has stopped.</h1><p>You can close this tab. Open the app again to restart it.</p></div>
+<script src="/panel.js"></script>
+</body>
+</html>

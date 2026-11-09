@@ -1,8 +1,8 @@
 import tempfile
 from pathlib import Path
 
-from phoneremote.backends.base import Backend
-from phoneremote.pairing import DeviceStore
+from kumpas.backends.base import Backend
+from kumpas.pairing import DeviceStore
 
 
 class FakeBackend(Backend):
@@ -18,6 +18,9 @@ class FakeBackend(Backend):
 
     def scroll(self, px):
         self.calls.append(("scroll", px))
+
+    def move_to(self, x, y):
+        self.calls.append(("move_to", x, y))
 
     def button(self, name, down):
         self.calls.append(("button", name, down))

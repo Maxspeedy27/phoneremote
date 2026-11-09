@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "phoneremote"
+name = "kumpas"
 version = "0.3.0"
 description = "Use your phone's browser as a remote control for your laptop - slides, touchpad and keyboard."
 readme = "README.md"
@@ -15,16 +15,17 @@ dependencies = [
     "pillow>=10",
     "mss>=9",
     "cryptography>=42",
+    "websockets>=13",
 ]
 
 [project.scripts]
-phoneremote = "phoneremote.cli:main"
+kumpas = "kumpas.cli:main"
 
 [project.gui-scripts]
-phoneremote-app = "phoneremote.cli:app_main"
+kumpas-app = "kumpas.cli:app_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-phoneremote = ["web/*", "web/vendor/*", "web/panel/*"]
+kumpas = ["web/*", "web/vendor/*", "web/panel/*"]

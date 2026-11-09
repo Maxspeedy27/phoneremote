@@ -2,8 +2,8 @@ import os
 import sys
 import unittest
 
-from phoneremote.crypto import b64d, new_key, seal, unseal
-from phoneremote.pairing import Pairing, PairingError
+from kumpas.crypto import b64d, new_key, seal, unseal
+from kumpas.pairing import Pairing, PairingError
 
 from helpers import Approver, temp_store
 
@@ -32,6 +32,13 @@ class Phone:
         self.session = unseal(self.device_key, reply)["s"]
         self.seq = 0
         self.frame_seq = 0
+        self.cursor_seq = 0
+
+    def cursor_poll(self, monitor=1):
+        self.cursor_seq = getattr(self, "cursor_seq", 0) + 1
+        msg = seal(self.device_key, {"t": "cursor", "s": self.session, "q": self.cursor_seq, "m": monitor})
+        msg["d"] = self.device_id
+        return msg
 
     def frame(self, monitor=1, width=640, seq=None):
         self.frame_seq = getattr(self, "frame_seq", 0) + 1 if seq is None else seq
@@ -126,6 +133,17 @@ class PairingTest(unittest.TestCase):
         self.assertEqual(self.pairing.open_command(phone.command([{"a": "up"}])), [{"a": "up"}])
         device, request = self.pairing.open_frame(phone.frame(monitor=2))
         self.assertEqual((device.name, request["m"]), ("Test phone", 2))
+
+    def test_cursor_polls_have_their_own_counter(self):
+        phone = self.paired_phone()
+        for _ in range(3):
+            self.pairing.open_cursor(phone.cursor_poll())
+        self.pairing.open_frame(phone.frame())          # frame 1 after cursor poll 3: fine
+        self.pairing.open_command(phone.command([]))
+        msg = phone.cursor_poll()
+        self.pairing.open_cursor(msg)
+        self.assertRejected("session", self.pairing.open_cursor, msg)
+        self.assertRejected("bad-request", self.pairing.open_frame, phone.cursor_poll())
 
     def test_replayed_or_mistyped_frame_rejected(self):
         phone = self.paired_phone()

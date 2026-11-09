@@ -1,0 +1,17 @@
+// Cloudflare configuration for the Kumpas relay. See relay/README.md.
+{
+  "name": "kumpas-relay",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  // The phone page is the same one the laptop serves locally.
+  "assets": {
+    "directory": "../src/kumpas/web",
+    "binding": "ASSETS",
+    "run_worker_first": true,   // the Worker decides what is served (never the laptop's panel files)
+    "html_handling": "none"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
+}
