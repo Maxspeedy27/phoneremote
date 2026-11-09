@@ -1,8 +1,8 @@
 import tempfile
 from pathlib import Path
 
-from phoneremote.backends.base import Backend
-from phoneremote.pairing import DeviceStore
+from kumpas.backends.base import Backend
+from kumpas.pairing import DeviceStore
 
 
 class FakeBackend(Backend):

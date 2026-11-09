@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-# Apply the uinput permission rule now, so Phone Remote works without a reboot.
+# Apply the uinput permission rule now, so Kumpas works without a reboot.
 if command -v udevadm >/dev/null 2>&1; then
     udevadm control --reload-rules || true
     modprobe uinput 2>/dev/null || true

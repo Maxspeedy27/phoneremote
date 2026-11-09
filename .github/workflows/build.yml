@@ -55,16 +55,16 @@ jobs:
 
       - name: Check the built app starts (Linux)
         if: runner.os == 'Linux'
-        run: dist/phoneremote/phoneremote --version
+        run: dist/kumpas/kumpas --version
       - name: Check the built app starts (macOS)
         if: runner.os == 'macOS'
-        run: '"dist/Phone Remote.app/Contents/MacOS/PhoneRemote" --version'
+        run: '"dist/Kumpas.app/Contents/MacOS/Kumpas" --version'
       - name: Check the built app starts (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath dist\PhoneRemote\PhoneRemote.exe -ArgumentList '--version' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "PhoneRemote.exe exited with $($p.ExitCode)" }
+          $p = Start-Process -FilePath dist\Kumpas\Kumpas.exe -ArgumentList '--version' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Kumpas.exe exited with $($p.ExitCode)" }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -89,4 +89,4 @@ jobs:
       - name: Publish a GitHub release with the installers
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "Phone Remote $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "Kumpas $GITHUB_REF_NAME" --generate-notes

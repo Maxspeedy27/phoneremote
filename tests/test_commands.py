@@ -1,7 +1,7 @@
 import unittest
 
-from phoneremote.commands import MAX_MOVE, MAX_OPS, run_ops
-from phoneremote.shortcuts import SHORTCUTS
+from kumpas.commands import MAX_MOVE, MAX_OPS, run_ops
+from kumpas.shortcuts import SHORTCUTS
 
 from helpers import FakeBackend
 

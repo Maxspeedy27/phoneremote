@@ -2,8 +2,8 @@ import os
 import sys
 import unittest
 
-from phoneremote.crypto import b64d, new_key, seal, unseal
-from phoneremote.pairing import Pairing, PairingError
+from kumpas.crypto import b64d, new_key, seal, unseal
+from kumpas.pairing import Pairing, PairingError
 
 from helpers import Approver, temp_store
 

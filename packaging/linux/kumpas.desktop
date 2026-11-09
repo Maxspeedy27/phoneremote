@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Kumpas
+GenericName=Phone remote control
+Comment=Control slides, mouse, keyboard and media from your phone's browser
+Exec=kumpas --app
+Icon=kumpas
+Terminal=false
+Categories=Utility;Office;Presentation;
+Keywords=presentation;slides;remote;clicker;mouse;touchpad;
+StartupNotify=false

@@ -2,8 +2,8 @@ import sys
 import unittest
 from unittest import mock
 
-from phoneremote import netinfo
-from phoneremote.netinfo import BLUETOOTH, HOTSPOT, USB, phone_addresses
+from kumpas import netinfo
+from kumpas.netinfo import BLUETOOTH, HOTSPOT, USB, phone_addresses
 
 
 class PhoneAddressesTest(unittest.TestCase):

@@ -1,7 +1,7 @@
 {
-  "name": "phoneremote-relay",
+  "name": "kumpas-relay",
   "private": true,
-  "description": "Internet relay and phone page host for Phone Remote (Cloudflare Worker + Durable Object)",
+  "description": "Internet relay and phone page host for Kumpas (Cloudflare Worker + Durable Object)",
   "scripts": {
     "dev": "wrangler dev --port 8787",
     "deploy": "wrangler deploy"

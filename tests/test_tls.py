@@ -8,7 +8,7 @@ from pathlib import Path
 
 from cryptography import x509
 
-from phoneremote import tls
+from kumpas import tls
 
 
 class SelfSignedTest(unittest.TestCase):
