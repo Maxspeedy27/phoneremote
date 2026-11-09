@@ -22,3 +22,28 @@ def config_dir():
         return Path.home() / "Library" / "Application Support" / "PhoneRemote"
     base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
     return Path(base) / "phoneremote"
+
+
+def _mac_framework_bool(framework, function):
+    """Call a no-argument macOS framework function returning a bool; None if unavailable."""
+    try:
+        import ctypes
+
+        lib = ctypes.cdll.LoadLibrary(f"/System/Library/Frameworks/{framework}.framework/{framework}")
+        fn = getattr(lib, function)
+        fn.restype = ctypes.c_bool
+        return bool(fn())
+    except Exception:
+        return None
+
+
+def mac_accessibility_trusted():
+    """macOS: may this app send keyboard and mouse input? None if unknown."""
+    return _mac_framework_bool("ApplicationServices", "AXIsProcessTrusted")
+
+
+def mac_screen_capture_allowed(ask=False):
+    """macOS 10.15+: may this app capture the screen? With ask=True, shows the
+    system prompt the first time. None if unknown."""
+    return _mac_framework_bool("CoreGraphics",
+                               "CGRequestScreenCaptureAccess" if ask else "CGPreflightScreenCaptureAccess")

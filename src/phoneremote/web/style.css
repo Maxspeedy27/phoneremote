@@ -1,7 +1,7 @@
 :root {
   --bg: #0f1115; --panel: #171a21; --btn: #232733; --btn-down: #343a4b;
   --line: #2a2f3b; --text: #e8eaf0; --muted: #8a90a0;
-  --accent: #4f8cff; --accent-down: #3a6fd8; --danger: #ff6464; --radius: 14px;
+  --accent: #4f8cff; --accent-down: #3a6fd8; --danger: #ff6464; --warn: #ffb547; --radius: 14px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
@@ -39,10 +39,31 @@ button small { display: block; font-size: 15px; font-weight: 500; opacity: .85; 
 #clock { flex: 1; font-size: 42px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
 .timer button { min-height: 48px; padding: 8px 14px; }
 #timer-toggle.running { background: var(--accent); }
-#swipe { flex: 1; min-height: 220px; display: grid; grid-template-columns: 2fr 3fr; gap: 10px; }
+.timer.warn #clock { color: var(--warn); }
+.timer.over #clock { color: var(--danger); }
+.timer.flash { animation: flash .5s ease-in-out 6 alternate; }
+@keyframes flash { to { background: var(--danger); } }
+.timer { border-radius: var(--radius); }
+.talk { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--muted); }
+.talk select {
+  flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--btn);
+  border: 0; border-radius: var(--radius); min-height: 44px; padding: 0 12px;
+}
+#swipe { flex: 1; min-height: 200px; display: grid; grid-template-columns: 2fr 3fr; gap: 10px; }
 #swipe button { min-height: 0; font-size: 44px; font-weight: 700; line-height: 1; }
 #next { background: var(--accent); }
 #next:active { background: var(--accent-down); }
+#pointer {
+  flex: 0 0 auto; height: 110px; touch-action: none; border-radius: 18px;
+  background: var(--panel); border: 1px dashed var(--line); color: var(--muted);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 14px; padding: 12px;
+}
+#pointer.touching { border: 1px solid var(--accent); }
+button.primary { background: var(--accent); }
+button.primary:active { background: var(--accent-down); }
+#tab-media .grid button { font-size: 30px; min-height: 92px; }
+#tab-media .grid button small { font-size: 14px; }
 
 #pad {
   flex: 0 0 auto; height: 44vh; min-height: 220px; touch-action: none;
@@ -61,6 +82,8 @@ form input {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 0 14px; min-height: 52px; -webkit-user-select: text; user-select: text;
 }
+form input::-webkit-outer-spin-button, form input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+form input[type=number] { -moz-appearance: textfield; }
 form input:focus { outline: none; border-color: var(--accent); }
 form button { min-height: 52px; padding: 0 18px; background: var(--accent); }
 
@@ -86,3 +109,25 @@ form button { min-height: 52px; padding: 0 18px; background: var(--accent); }
 }
 #overlay-code:empty { display: none; }
 #overlay-retry { min-width: 12em; background: var(--accent); }
+
+nav button.icon { flex: 0 0 56px; padding: 0; display: flex; align-items: center; justify-content: center; }
+nav button.icon svg { width: 24px; height: 24px; }
+#screen-view {
+  position: relative; margin: 10px 12px 0; height: 27vh; height: 27dvh; flex: none;
+  background: #000; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; touch-action: manipulation;
+}
+#screen-view[hidden] { display: none; }
+#screen-view.big { height: 62vh; height: 62dvh; }
+#screen-img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+#screen-img:not([src]) { display: none; }
+#screen-msg { position: absolute; margin: 0; padding: 10px 14px; max-width: 90%; text-align: center;
+  font-size: 13px; color: var(--text); background: rgba(15, 17, 21, .85); border-radius: 10px; }
+#screen-msg:empty { display: none; }
+#screen-mon { position: absolute; top: 8px; right: 8px; min-height: 0; padding: 6px 10px; font-size: 13px;
+  background: rgba(35, 39, 51, .9); }
+.tilt { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.tilt input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+#pointer.tilting { border: 1px solid var(--danger); }
+
+[hidden] { display: none !important; }

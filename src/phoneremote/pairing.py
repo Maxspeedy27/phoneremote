@@ -14,9 +14,10 @@ typed text.
   session chosen by the laptop and numbers its requests, so recorded traffic
   can't be replayed.
 
-Known limitation: the page itself is served over plain HTTP, so an attacker who
-can actively tamper with LAN traffic (e.g. ARP spoofing) could serve modified
-JavaScript. Closing that needs HTTPS, which comes with the planned relay.
+Known limitation: by default the page itself is served over plain HTTP, so an
+attacker who can actively tamper with LAN traffic (e.g. ARP spoofing) could
+serve modified JavaScript. HTTPS (tls.py) closes that with a certificate the
+phone trusts; a self-signed one only protects after the first visit.
 """
 
 import json
@@ -107,7 +108,7 @@ class Pairing:
         self._approval_lock = threading.Lock()  # one pairing prompt at a time
         self._pairing_key = new_key()
         self._device = store.load()
-        self._session = None  # [session id, last sequence number]
+        self._session = None  # [session id, last command number, last frame number]
 
     @property
     def device(self):
@@ -178,17 +179,28 @@ class Pairing:
         with self._lock:
             if device is not self._device:
                 raise PairingError(*NOT_PAIRED)
-            self._session = [session_id, 0]
+            self._session = [session_id, 0, 0]
         return device, seal(device.key, {"t": "session", "s": session_id, "host": self.host})
 
-    def open_command(self, msg):
-        """Verify a command message and return its list of operations."""
-        _, request = self._open(msg, "cmd")
+    def _check_sequence(self, request, slot):
+        # Commands and screen frames are numbered separately (slots 1 and 2),
+        # since the phone sends them over parallel connections.
         seq = request.get("q")
         with self._lock:
             if self._session is None or request.get("s") != self._session[0]:
                 raise PairingError(401, "session", "Session expired; reconnecting.")
-            if not isinstance(seq, int) or isinstance(seq, bool) or seq <= self._session[1]:
+            if not isinstance(seq, int) or isinstance(seq, bool) or seq <= self._session[slot]:
                 raise PairingError(401, "session", "Out-of-order or repeated request.")
-            self._session[1] = seq
+            self._session[slot] = seq
+
+    def open_command(self, msg):
+        """Verify a command message and return its list of operations."""
+        _, request = self._open(msg, "cmd")
+        self._check_sequence(request, 1)
         return request.get("ops")
+
+    def open_frame(self, msg):
+        """Verify a screen-frame request; returns (device, request) for sealing the reply."""
+        device, request = self._open(msg, "frame")
+        self._check_sequence(request, 2)
+        return device, request

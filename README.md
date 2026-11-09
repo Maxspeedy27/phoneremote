@@ -4,7 +4,28 @@ Use your phone's browser as a remote control for your laptop: next/back for
 slides, a touchpad, scrolling, zoom and typing. Nothing to install on the
 phone. The laptop runs a small local server; the phone scans a QR code.
 
-- **Slides:** big Next/Back buttons and swipes, Start, Exit, Blank, First/Last, talk timer.
+Works with any presentation app (PowerPoint, Keynote, LibreOffice Impress,
+Google Slides, PDF viewers), because it presses keys on the laptop rather
+than plugging into one app. No account, no cloud: it works offline over Wi-Fi
+or Bluetooth tethering.
+
+- **Slides:** big Next/Back buttons and swipes, Start, Exit, black or white
+  screen, First/Last, and go to a slide by number (PowerPoint, Keynote,
+  Impress, Google Slides). A pointer strip moves the laptop's cursor so you can
+  point at the projected slide without changing slides.
+- **Talk timer:** counts up, or set a talk length and it counts down. The
+  phone vibrates silently at 5 minutes left, 1 minute left and time up (on
+  phones that support vibration, i.e. not iPhones), the clock turns amber then
+  red, and overtime shows as `+MM:SS`. Survives page reloads.
+- **Media:** play/pause, previous/next track, volume and mute for whatever is
+  playing on the laptop, plus rewind/forward/space for video players.
+- **Screen view:** a live, encrypted picture of the laptop screen at the top
+  of the phone, so you can see the projected slide while facing the audience,
+  or use the touchpad without looking up. Tap it to enlarge; switch monitors.
+  Only sent while the phone is looking at it, and the laptop shows when it is.
+  (Windows, macOS, Linux on X11; not yet on Wayland.)
+- **Tilt to point:** over HTTPS, hold the pointer strip and move the phone like
+  a laser pointer; let go and the cursor stays put.
 - **Touchpad:** move, tap to click, two-finger tap to right-click, two-finger
   scroll, hold to drag, browser back, page up/down, fullscreen, zoom, typing.
   Double-tapping the pad double-clicks and opens the phone's keyboard, ready
@@ -14,25 +35,40 @@ phone. The laptop runs a small local server; the phone scans a QR code.
 
 Works on Windows, macOS and Linux (X11 and Wayland).
 
-## Install (development)
+## Install
+
+Download the installer for your laptop from the Releases page:
+
+- **Windows:** `PhoneRemote-<version>-windows-setup.exe`. It also lets phones
+  through the firewall on private networks, so there's no firewall prompt.
+- **macOS:** `PhoneRemote-<version>-macos-arm64.dmg`; drag Phone Remote to
+  Applications. Until the app is signed, open it the first time with
+  right-click → Open.
+- **Linux (Debian, Ubuntu, Mint):** `sudo apt install ./phoneremote_<version>_amd64.deb`.
+  It also installs the permission rule that Wayland desktops need, so there
+  are no setup commands.
+
+Then start **Phone Remote** from the Start menu, Launchpad or app menu. It
+opens a control panel in your browser with the QR code, pairing requests
+(Allow/Refuse), the paired phone, and switches for screen view and HTTPS.
+Opening the app again while it runs just shows the panel; Quit is at the bottom.
+
+## Run from source
 
 Python 3.9+.
 
 ```bash
 python -m venv .venv
 .venv/bin/pip install -e .          # Windows: .venv\Scripts\pip install -e .
-```
-
-## Run
-
-```bash
-.venv/bin/phoneremote               # or: python -m phoneremote
+.venv/bin/phoneremote               # terminal version (or: python -m phoneremote)
+.venv/bin/phoneremote --app         # desktop app with the browser control panel
 ```
 
 Options: `--port 8765`, `--backend auto|pyautogui|uinput`, `--ip ADDRESS`
-(the laptop address to put in the QR code), `--light-qr`,
-`--forget` (unpair the remembered phone), `--no-confirm` (skip the approval
-prompt; less secure).
+(the laptop address to put in the QR code), `--https` (see below),
+`--cert FILE --key FILE` and `--hostname NAME` (use your own certificate),
+`--no-screen` (no screen view), `--light-qr`, `--forget` (unpair the
+remembered phone), `--no-confirm` (skip the approval prompt; less secure).
 
 ## Pairing
 
@@ -40,7 +76,8 @@ prompt; less secure).
    must be on the same Wi-Fi as the laptop, or connected to it by Bluetooth
    tethering (see below).
 2. The phone shows a 6-digit code, and the laptop asks whether to allow it.
-   Check that the codes match, then type `y`.
+   Check that the codes match, then click Allow in the control panel (or type
+   `y` in the terminal version).
 3. The phone is now paired and remembered. Next time, simply reopen the page
    (bookmark it, or add it to the home screen). Pairing another phone
    replaces the first one.
@@ -89,13 +126,37 @@ the QR code on a projected screen, can't control the laptop or read typed text.
   are chosen by the laptop and requests are numbered, so recorded traffic can't
   be replayed.
 - The phone may only trigger a fixed list of named actions, not arbitrary keys.
+- Screen view pictures are encrypted the same way, taken only while the paired
+  phone is looking, can be switched off in the panel (or `--no-screen`), and
+  the panel shows "The phone is viewing your screen" while it happens.
+- The control panel only listens on 127.0.0.1, checks the Host header (against
+  DNS rebinding) and needs a secret token per launch, so neither other devices
+  nor other websites open in the same browser can approve a pairing.
 - The paired phone's key is stored owner-only in the user config folder
   (`~/.config/phoneremote/` on Linux, `~/Library/Application Support/PhoneRemote/`
   on macOS, `%APPDATA%\PhoneRemote\` on Windows).
 
-**Known limitation:** the page is served over plain HTTP, so an attacker who can
-actively tamper with LAN traffic (ARP spoofing) could serve modified JavaScript
-to the phone. Fixing that needs HTTPS, planned together with the relay.
+## HTTPS
+
+By default the phone page is plain HTTP, which works with no warnings. Because
+of that, an attacker who can actively tamper with LAN traffic (ARP spoofing)
+could serve modified JavaScript to the phone, and browsers hide some features
+from HTTP pages. Turning on **Secure connection (HTTPS)** in the panel (or
+`--https`) serves the page over HTTPS with a self-signed certificate made for
+this laptop, which unlocks:
+
+- keeping the phone's screen on while the talk timer runs (Wake Lock);
+- tilt-to-point (motion sensors);
+- installing the page as an app.
+
+The phone shows a "connection not private" warning the first time (tap
+Advanced, then Proceed) and pairs once more, because `https://` is a different
+site to the browser. The panel shows the certificate's SHA-256 fingerprint to
+compare with the browser's certificate viewer. Plain `http://` links to the
+same port are redirected to `https://`. A self-signed certificate can't stop
+an attacker who is already intercepting before that first visit; a certificate
+the phone trusts can: `--cert FILE --key FILE --hostname NAME` uses your own,
+for example for a domain name that points at the laptop's address.
 
 ## Platform notes
 
@@ -110,6 +171,10 @@ Settings → Privacy & Security → Accessibility, then restart Phone Remote.
 "Start" sends Cmd+Shift+Return (PowerPoint for Mac); for Keynote change
 `start` in `src/phoneremote/shortcuts.py` to `("option", "command", "p")`.
 
+**macOS screen view:** allow Phone Remote under System Settings → Privacy &
+Security → Screen Recording (macOS asks the first time the phone opens the
+screen view), then restart it.
+
 **Linux, X11:** uses pyautogui. Non-ASCII typing needs `xclip`.
 
 **Linux, Wayland:** Wayland ignores pyautogui, so Phone Remote creates a virtual
@@ -121,6 +186,9 @@ once:
     sudo udevadm trigger --name-match=uinput
 
 Typing assumes a US keyboard layout; non-ASCII text needs `wl-clipboard`.
+Screen view isn't available on Wayland yet: Wayland only offers screen capture
+through a portal that is far too slow for a live view (it would need the
+PipeWire screencast portal). Log in to an X11 session to use it.
 
 ## Development
 
@@ -134,15 +202,49 @@ when Node.js is installed.
 Layout:
 
     src/phoneremote/
-      cli.py          command line, startup output
-      server.py       HTTP server and routes
+      cli.py          entry points: terminal version and desktop app (--app)
+      runtime.py      the running remote: server, pairing, address, HTTPS switch
+      hostui.py       desktop app control panel (served on 127.0.0.1)
+      server.py       phone HTTP(S) server and routes
+      screen.py       screen view snapshots (mss + Pillow)
+      tls.py          self-signed or user-supplied HTTPS certificates
       pairing.py      pairing, device storage, sessions, replay protection
       crypto.py       secretbox helpers shared with web/crypto.js
       commands.py     validating and applying phone operations
       shortcuts.py    named actions -> per-OS key combinations
       backends/       pyautogui and uinput input backends
-      web/            phone page (HTML, CSS, JS) and vendored tweetnacl
+      web/            phone page (HTML, CSS, JS), icons, vendored tweetnacl
+      web/panel/      control panel page
+    packaging/        PyInstaller spec, build script, Linux/Windows installer files, icons
     tests/
+
+## Building the installers
+
+```bash
+.venv/bin/pip install pyinstaller
+.venv/bin/python packaging/build.py     # builds for the OS it runs on, into dist/
+```
+
+Linux builds a `.deb`, macOS a `.dmg`, Windows an installer `.exe` (needs
+[Inno Setup 6](https://jrsoftware.org/isinfo.php)). PyInstaller can't
+cross-compile, so `.github/workflows/build.yml` builds all three on GitHub's
+machines on every push, and publishes them as a release when you push a tag
+like `v0.3.0`. Build the Linux package on the oldest distro you support
+(the workflow uses Ubuntu 22.04): it runs on that glibc or newer.
+`packaging/make_icons.py` redraws the icons.
+
+**Signing (before a public launch):** the packages are unsigned.
+
+- **Windows:** SmartScreen warns about unsigned downloads ("Windows protected
+  your PC" → More info → Run anyway) until the app has a code-signing
+  certificate and some download reputation.
+- **macOS:** Gatekeeper blocks unsigned apps on double-click (right-click → Open
+  works). Signing with a Developer ID and notarizing (Apple Developer Program,
+  US$99/year) removes that; `build.py` signs with `MACOS_SIGN_IDENTITY` when
+  set. Signing also keeps macOS's Accessibility and Screen Recording
+  permissions across updates.
+- **Linux:** `.deb` files are installed directly; signing matters once you run
+  an apt repository.
 
 Third-party code: `web/vendor/nacl-fast.min.js` is tweetnacl-js 1.0.3
 (public domain, see `LICENSE-tweetnacl.txt`).

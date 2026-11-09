@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phoneremote"
-version = "0.2.0"
+version = "0.3.0"
 description = "Use your phone's browser as a remote control for your laptop - slides, touchpad and keyboard."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -12,13 +12,19 @@ dependencies = [
     "pynacl>=1.5",
     "qrcode>=7",
     "pyautogui>=0.9.54",
+    "pillow>=10",
+    "mss>=9",
+    "cryptography>=42",
 ]
 
 [project.scripts]
 phoneremote = "phoneremote.cli:main"
 
+[project.gui-scripts]
+phoneremote-app = "phoneremote.cli:app_main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-phoneremote = ["web/*", "web/vendor/*"]
+phoneremote = ["web/*", "web/vendor/*", "web/panel/*"]

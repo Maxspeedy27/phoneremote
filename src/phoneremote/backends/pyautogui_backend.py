@@ -4,6 +4,16 @@ import time
 from ..system import IS_MAC, IS_WIN, MOD
 from .base import Backend
 
+# pyautogui media key name -> (macOS system-defined key, X11 XF86 keysym)
+MEDIA_KEYS = {
+    "playpause": ("KEYTYPE_PLAY", 0x1008FF14),        # XF86AudioPlay
+    "nexttrack": ("KEYTYPE_NEXT", 0x1008FF17),        # XF86AudioNext
+    "prevtrack": ("KEYTYPE_PREVIOUS", 0x1008FF16),    # XF86AudioPrev
+    "volumeup": ("KEYTYPE_SOUND_UP", 0x1008FF13),     # XF86AudioRaiseVolume
+    "volumedown": ("KEYTYPE_SOUND_DOWN", 0x1008FF11), # XF86AudioLowerVolume
+    "volumemute": ("KEYTYPE_MUTE", 0x1008FF12),       # XF86AudioMute
+}
+
 
 class PyAutoGuiBackend(Backend):
     """Windows, macOS and Linux on X11."""
@@ -62,7 +72,31 @@ class PyAutoGuiBackend(Backend):
         self.gui.click(button=name)
 
     def hotkey(self, *keys):
-        self.gui.hotkey(*keys)
+        if len(keys) == 1 and keys[0] in MEDIA_KEYS and not IS_WIN:
+            self._media_key(keys[0])
+        else:
+            self.gui.hotkey(*keys)
+
+    def _media_key(self, name):
+        # pyautogui.hotkey() handles media keys on Windows only. On macOS they
+        # are "system-defined" events that its keyDown() rejects, and on X11
+        # it has no mapping for them, so send them the native way here.
+        mac_name, x11_keysym = MEDIA_KEYS[name]
+        platform = self.gui.platformModule
+        if IS_MAC:
+            platform._specialKeyEvent(mac_name, "down")
+            platform._specialKeyEvent(mac_name, "up")
+            return
+        from Xlib import X
+        from Xlib.ext.xtest import fake_input
+
+        display = platform._display
+        keycode = display.keysym_to_keycode(x11_keysym)
+        if not keycode:
+            raise ValueError(f"this X11 keyboard map has no {name} key")
+        fake_input(display, X.KeyPress, keycode)
+        fake_input(display, X.KeyRelease, keycode)
+        display.sync()
 
     def type_text(self, text):
         if all(32 <= ord(c) < 127 or c in "\n\t" for c in text):

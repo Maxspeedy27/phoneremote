@@ -1,14 +1,18 @@
 """HTTP server: serves the phone page and receives encrypted commands."""
 
 import json
+import re
 import socket
+import ssl
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import urlsplit
 
 from .commands import run_ops
+from .crypto import b64e, seal
 from .pairing import PairingError
+from .screen import ScreenUnavailable
 
 MAX_BODY = 64 * 1024
 
@@ -19,11 +23,16 @@ STATIC_FILES = {
     "/static/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/static/crypto.js": ("crypto.js", "text/javascript; charset=utf-8"),
     "/static/nacl-fast.min.js": ("vendor/nacl-fast.min.js", "text/javascript; charset=utf-8"),
+    "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
+    "/static/icon.svg": ("icon.svg", "image/svg+xml"),
+    "/static/icon-192.png": ("icon-192.png", "image/png"),
+    "/static/icon-512.png": ("icon-512.png", "image/png"),
+    "/apple-touch-icon.png": ("icon-180.png", "image/png"),
 }
 
 CONTENT_SECURITY_POLICY = (
     "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
-    "img-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    "img-src 'self' blob:; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 
 
@@ -32,16 +41,68 @@ def load_static():
     return {path: (web.joinpath(name).read_bytes(), ctype) for path, (name, ctype) in STATIC_FILES.items()}
 
 
+HOST_HEADER = re.compile(r"^[A-Za-z0-9.:\[\]-]{1,255}$")
+SAFE_PATH = re.compile(r"^/[\x21-\x7e]{0,1000}$")
+
+
 class RemoteServer(ThreadingHTTPServer):
+    """Serves the phone page and API, over HTTPS when given an SSL context.
+
+    TLS handshakes run on the per-connection thread, so a slow or stalled
+    client can't hold up accepting others. A plain-HTTP request sent to the
+    HTTPS port (an old bookmark) is redirected to https://.
+    """
+
     daemon_threads = True
 
-    def __init__(self, address, backend, pairing, log=print):
+    def __init__(self, address, backend, pairing, screen=None, ssl_context=None, log=print):
         self.backend = backend
         self.pairing = pairing
+        self.screen = screen
+        self.ssl_context = ssl_context
         self.log = log
         self.static = load_static()
         self.input_lock = threading.Lock()  # backends aren't thread-safe; serialize all input
         super().__init__(address, RemoteHandler)
+
+    @property
+    def scheme(self):
+        return "https" if self.ssl_context else "http"
+
+    def finish_request(self, request, client_address):
+        if self.ssl_context is None:
+            return super().finish_request(request, client_address)
+        request.settimeout(10)
+        try:
+            first = request.recv(1, socket.MSG_PEEK)
+            if not first:
+                return
+            if first != b"\x16":   # not a TLS ClientHello: plain HTTP
+                return self._redirect_to_https(request)
+            tls = self.ssl_context.wrap_socket(request, server_side=True)
+        except (OSError, ssl.SSLError):
+            return  # handshake failed, e.g. the phone rejected the certificate
+        try:
+            tls.settimeout(None)
+            super().finish_request(tls, client_address)
+        finally:
+            try:
+                tls.close()
+            except OSError:
+                pass
+
+    def _redirect_to_https(self, sock):
+        head = sock.recv(8192).decode("latin-1", "replace")
+        lines = head.split("\r\n")
+        parts = lines[0].split(" ")
+        path = parts[1] if len(parts) == 3 and SAFE_PATH.match(parts[1]) else "/"
+        host = next((line.split(":", 1)[1].strip() for line in lines[1:]
+                     if line.lower().startswith("host:")), "")
+        if not HOST_HEADER.match(host):
+            sock.sendall(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            return
+        sock.sendall((f"HTTP/1.1 301 Moved Permanently\r\nLocation: https://{host}{path}\r\n"
+                      "Content-Length: 0\r\nConnection: close\r\n\r\n").encode("latin-1"))
 
 
 class RemoteHandler(BaseHTTPRequestHandler):
@@ -110,6 +171,7 @@ class RemoteHandler(BaseHTTPRequestHandler):
             "/api/pair": self._pair,
             "/api/hello": self._hello,
             "/api/cmd": self._command,
+            "/api/frame": self._frame,
         }.get(urlsplit(self.path).path)
         if route is None:
             return self._error(404, "not-found", "Not found")
@@ -121,6 +183,8 @@ class RemoteHandler(BaseHTTPRequestHandler):
             route(msg)
         except PairingError as exc:
             self._error(exc.status, exc.code, str(exc))
+        except ScreenUnavailable as exc:
+            self._error(503, "screen", str(exc))
         except ValueError as exc:
             self._error(400, "bad-request", str(exc))
         except Exception as exc:
@@ -139,3 +203,14 @@ class RemoteHandler(BaseHTTPRequestHandler):
         with self.server.input_lock:
             run_ops(self.server.backend, ops)
         self._send_json(200, {"ok": True})
+
+    def _frame(self, msg):
+        device, request = self.server.pairing.open_frame(msg)
+        screen = self.server.screen
+        if screen is None:
+            raise ScreenUnavailable("Screen view is turned off on the laptop.")
+        was_viewing = screen.viewing
+        jpeg, monitor, count = screen.grab(request.get("m", 1), request.get("w", 720))
+        if not was_viewing:
+            self.server.log(f"{device.name} is viewing the screen.")
+        self._send_json(200, seal(device.key, {"t": "frame", "img": b64e(jpeg), "m": monitor, "n": count}))

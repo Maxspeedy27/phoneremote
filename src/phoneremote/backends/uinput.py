@@ -56,7 +56,8 @@ class UinputBackend(Backend):
         "esc": 1, "backspace": 14, "tab": 15, "enter": 28, "ctrl": 29, "shift": 42,
         "alt": 56, "space": 57, "f5": 63, "f11": 87, "home": 102, "up": 103,
         "pageup": 104, "left": 105, "right": 106, "end": 107, "down": 108,
-        "pagedown": 109, "delete": 111,
+        "pagedown": 109, "delete": 111, "volumemute": 113, "volumedown": 114,
+        "volumeup": 115, "nexttrack": 163, "playpause": 164, "prevtrack": 165,
     }
     CHARS = us_keymap()
 
