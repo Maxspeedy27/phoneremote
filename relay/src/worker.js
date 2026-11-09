@@ -1,4 +1,4 @@
-// Phone Remote relay: serves the phone page over HTTPS and passes messages
+// Kumpas relay: serves the phone page over HTTPS and passes messages
 // between a laptop and its phones, so they work on any network with internet.
 //
 // Each laptop has a room (a Durable Object) named by its room id. The relay
@@ -131,7 +131,7 @@ export class Room extends DurableObject {
         let i = null;
         try { i = JSON.parse(message).i; } catch (e) {}
         ws.send(JSON.stringify({ i, s: 503, b: { ok: false, code: 'offline',
-          error: "The laptop isn't connected. Open Phone Remote on the laptop and check it has internet." } }));
+          error: "The laptop isn't connected. Open Kumpas on the laptop and check it has internet." } }));
       }
       return;
     }

@@ -7,11 +7,11 @@ import threading
 import unittest
 from pathlib import Path
 
-from phoneremote import tls
-from phoneremote.crypto import b64d, unseal
-from phoneremote.pairing import Pairing
-from phoneremote.screen import ScreenUnavailable
-from phoneremote.server import RemoteServer
+from kumpas import tls
+from kumpas.crypto import b64d, unseal
+from kumpas.pairing import Pairing
+from kumpas.screen import ScreenUnavailable
+from kumpas.server import RemoteServer
 
 from helpers import Approver, FakeBackend, temp_store
 from test_pairing import Phone

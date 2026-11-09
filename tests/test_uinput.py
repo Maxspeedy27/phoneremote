@@ -1,8 +1,8 @@
 import struct
 import unittest
 
-from phoneremote.backends.uinput import UinputBackend, us_keymap
-from phoneremote.shortcuts import SHORTCUTS
+from kumpas.backends.uinput import UinputBackend, us_keymap
+from kumpas.shortcuts import SHORTCUTS
 
 
 def ioc(direction, size, nr):

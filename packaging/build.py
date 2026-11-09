@@ -2,9 +2,9 @@
 
     python packaging/build.py            # from the repository root
 
-Linux:   dist/phoneremote_<version>_<arch>.deb
-macOS:   dist/PhoneRemote-<version>-macos-<arch>.dmg
-Windows: dist/PhoneRemote-<version>-windows-setup.exe  (needs Inno Setup 6)
+Linux:   dist/kumpas_<version>_<arch>.deb
+macOS:   dist/Kumpas-<version>-macos-<arch>.dmg
+Windows: dist/Kumpas-<version>-windows-setup.exe  (needs Inno Setup 6)
 
 Each OS must build its own package; PyInstaller can't cross-compile. The GitHub
 Actions workflow in .github/workflows/build.yml runs this on all three.
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGING = ROOT / "packaging"
 DIST, BUILD = ROOT / "dist", ROOT / "build"
 sys.path.insert(0, str(ROOT / "src"))
-from phoneremote import __version__ as VERSION  # noqa: E402
+from kumpas import __version__ as VERSION  # noqa: E402
 
 
 def run(*cmd, **kw):
@@ -35,7 +35,7 @@ def pyinstaller():
     if sys.platform.startswith("win"):
         write_windows_version_file(BUILD / "win-version.txt")
     run(sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
-        "--distpath", DIST, "--workpath", BUILD / "pyinstaller", PACKAGING / "phoneremote.spec")
+        "--distpath", DIST, "--workpath", BUILD / "pyinstaller", PACKAGING / "kumpas.spec")
 
 
 # ---------------------------------------------------------------- Linux
@@ -52,14 +52,14 @@ def build_deb():
     arch = deb_arch()
     stage = BUILD / "deb"
     shutil.rmtree(stage, ignore_errors=True)
-    app_dir = stage / "opt" / "phoneremote"
-    shutil.copytree(DIST / "phoneremote", app_dir, symlinks=True)
+    app_dir = stage / "opt" / "kumpas"
+    shutil.copytree(DIST / "kumpas", app_dir, symlinks=True)
     (stage / "usr" / "bin").mkdir(parents=True)
-    os.symlink("/opt/phoneremote/phoneremote", stage / "usr" / "bin" / "phoneremote")
+    os.symlink("/opt/kumpas/kumpas", stage / "usr" / "bin" / "kumpas")
     for src, dest in [
-        (PACKAGING / "linux" / "phoneremote.desktop", "usr/share/applications/phoneremote.desktop"),
-        (PACKAGING / "icons" / "phoneremote.png", "usr/share/icons/hicolor/512x512/apps/phoneremote.png"),
-        (PACKAGING / "linux" / "60-phone-remote-uinput.rules", "usr/lib/udev/rules.d/60-phone-remote-uinput.rules"),
+        (PACKAGING / "linux" / "kumpas.desktop", "usr/share/applications/kumpas.desktop"),
+        (PACKAGING / "icons" / "kumpas.png", "usr/share/icons/hicolor/512x512/apps/kumpas.png"),
+        (PACKAGING / "linux" / "60-kumpas-uinput.rules", "usr/lib/udev/rules.d/60-kumpas-uinput.rules"),
     ]:
         target = stage / dest
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -70,10 +70,10 @@ def build_deb():
     debian.mkdir()
     size_kb = sum(f.stat().st_size for f in stage.rglob("*") if f.is_file() and not f.is_symlink()) // 1024
     (debian / "control").write_text(f"""\
-Package: phoneremote
+Package: kumpas
 Version: {VERSION}
 Architecture: {arch}
-Maintainer: Phone Remote <noreply@phoneremote.invalid>
+Maintainer: Kumpas <noreply@kumpas.invalid>
 Installed-Size: {size_kb}
 Depends: libc6, libx11-6, libxtst6, libxrandr2
 Recommends: wl-clipboard, xclip
@@ -93,7 +93,7 @@ Description: Control your laptop from your phone's browser
         if not path.is_symlink():
             mode = path.stat().st_mode & 0o7777
             path.chmod(mode & ~0o022)
-    out = DIST / f"phoneremote_{VERSION}_{arch}.deb"
+    out = DIST / f"kumpas_{VERSION}_{arch}.deb"
     run("dpkg-deb", "--root-owner-group", "--build", stage, out)
     return out
 
@@ -101,7 +101,7 @@ Description: Control your laptop from your phone's browser
 # ---------------------------------------------------------------- macOS
 
 def build_dmg():
-    app = DIST / "Phone Remote.app"
+    app = DIST / "Kumpas.app"
     # Ad-hoc signature: required to run on Apple Silicon. A Developer ID
     # signature plus notarization (paid Apple account) removes the Gatekeeper
     # warning; set MACOS_SIGN_IDENTITY to use one.
@@ -112,9 +112,9 @@ def build_dmg():
     stage.mkdir(parents=True)
     shutil.copytree(app, stage / app.name, symlinks=True)
     os.symlink("/Applications", stage / "Applications")
-    out = DIST / f"PhoneRemote-{VERSION}-macos-{platform.machine()}.dmg"
+    out = DIST / f"Kumpas-{VERSION}-macos-{platform.machine()}.dmg"
     out.unlink(missing_ok=True)
-    run("hdiutil", "create", "-volname", "Phone Remote", "-srcfolder", stage, "-ov", "-format", "UDZO", out)
+    run("hdiutil", "create", "-volname", "Kumpas", "-srcfolder", stage, "-ov", "-format", "UDZO", out)
     return out
 
 
@@ -128,11 +128,11 @@ VSVersionInfo(
                     fileType=0x1, subtype=0x0, date=(0, 0)),
   kids=[
     StringFileInfo([StringTable('040904B0', [
-      StringStruct('FileDescription', 'Phone Remote'),
+      StringStruct('FileDescription', 'Kumpas'),
       StringStruct('FileVersion', '{VERSION}'),
-      StringStruct('ProductName', 'Phone Remote'),
+      StringStruct('ProductName', 'Kumpas'),
       StringStruct('ProductVersion', '{VERSION}'),
-      StringStruct('OriginalFilename', 'PhoneRemote.exe')])]),
+      StringStruct('OriginalFilename', 'Kumpas.exe')])]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]
 )
@@ -153,10 +153,10 @@ def build_windows_installer():
     iscc = find_iscc()
     if not iscc:
         sys.exit("Inno Setup 6 not found (https://jrsoftware.org/isinfo.php). "
-                 "The app itself is in dist/PhoneRemote.")
-    run(iscc, f"/DAppVersion={VERSION}", f"/DSourceDir={DIST / 'PhoneRemote'}",
-        PACKAGING / "windows" / "phoneremote.iss")
-    return DIST / f"PhoneRemote-{VERSION}-windows-setup.exe"
+                 "The app itself is in dist/Kumpas.")
+    run(iscc, f"/DAppVersion={VERSION}", f"/DSourceDir={DIST / 'Kumpas'}",
+        PACKAGING / "windows" / "kumpas.iss")
+    return DIST / f"Kumpas-{VERSION}-windows-setup.exe"
 
 
 def main():

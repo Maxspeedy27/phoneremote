@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from phoneremote import cli, hostui
-from phoneremote.runtime import Runtime, Settings
+from kumpas import cli, hostui
+from kumpas.runtime import Runtime, Settings
 
 from helpers import FakeBackend, temp_store
 
@@ -97,7 +97,7 @@ class PanelTest(unittest.TestCase):
         self.call("screen", {"on": False})
         self.assertFalse(self.rt.screen.enabled)
         self.assertFalse(Settings(self.dir / "settings.json")["screen"])
-        with mock.patch("phoneremote.runtime.config_dir", return_value=self.dir):
+        with mock.patch("kumpas.runtime.config_dir", return_value=self.dir):
             status, reply = self.call("https", {"on": True})
         self.assertEqual((status, reply["ok"]), (200, True))
         state = self.call("state")[1]
@@ -112,7 +112,7 @@ class PanelTest(unittest.TestCase):
         fake = FakeRelay()
         self.addCleanup(fake.close)
         self.panel.relay_url = fake.url
-        with mock.patch("phoneremote.runtime.config_dir", return_value=self.dir):
+        with mock.patch("kumpas.runtime.config_dir", return_value=self.dir):
             self.rt.set_relay(fake.url)
             self.rt.start()
             self.addCleanup(self.rt.close)
@@ -147,7 +147,7 @@ class AppEntryTest(unittest.TestCase):
     def run_entry(self, argv, tty):
         stdin = mock.Mock()
         stdin.isatty.return_value = tty
-        with mock.patch.object(cli.sys, "argv", ["PhoneRemote"] + argv), \
+        with mock.patch.object(cli.sys, "argv", ["Kumpas"] + argv), \
              mock.patch.object(cli.sys, "stdin", stdin), mock.patch.object(cli, "main") as main:
             cli.app_main()
         return main.call_args[0][0]

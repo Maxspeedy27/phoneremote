@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Source for og-image.png (1200x630). Re-render with:
+     google-chrome --headless=new --hide-scrollbars --force-prefers-reduced-motion --blink-settings=preferredColorScheme=0 --window-size=1200,630 --screenshot=og-image.png og-image.html -->
+<html lang="en"><head><meta charset="utf-8"><title>Kumpas social image</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  .og { position: relative; width: 1200px; height: 630px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 24px; padding: 0 64px; isolation: isolate; }
+  .og::before { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(45% 60% at 78% 40%, rgba(79,140,255,.28), transparent 70%), radial-gradient(35% 50% at 10% 0%, rgba(120,90,255,.16), transparent 70%); }
+  .og .brand { font-size: 26px; gap: 14px; }
+  .og h1 { font-size: 66px; margin: 28px 0 22px; }
+  .og p { font-size: 24px; color: var(--muted); line-height: 1.45; }
+  .og .stage { padding: 0; max-width: 560px; }
+  .og .tags { display: flex; gap: 10px; margin-top: 30px; flex-wrap: wrap; }
+  .og .tags span { font: 600 17px var(--font-body); padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text); }
+</style></head>
+<body>
+<div class="og">
+  <div>
+    <div class="brand"><img src="icon.svg" width="48" height="48" alt=""><span>Kumpas</span></div>
+    <h1>Your phone is<br><span class="grad">the remote.</span></h1>
+    <p>Slides, touchpad, typing and media for your laptop, from your phone's browser.</p>
+    <div class="tags"><span>No phone app</span><span>Works offline</span><span>Encrypted</span></div>
+  </div>
+  <div class="stage" aria-hidden="true">
+    <div class="laptop"><div class="laptop-screen"><div class="deck">
+      <div class="slide s3 is-on"><span class="s-head">Sign-ups by month</span>
+      <span class="bars"><b style="--h:32%"></b><b style="--h:44%"></b><b style="--h:41%"></b><b style="--h:58%"></b><b style="--h:71%"></b><b style="--h:92%"></b></span></div>
+    </div><span class="slide-num">3 / 4</span></div><div class="laptop-base"></div></div>
+    <div class="phone" style="bottom:-40px"><div class="phone-screen">
+      <div class="p-tabs"><span class="on">Slides</span><span>Touchpad</span><span>Media</span></div>
+      <div class="p-timer"><span>12:48</span><em>Pause</em></div>
+      <div class="p-swipe"><button><span>&#9664;</span><small>Back</small></button><button class="next"><span>&#9654;</span><small>Next</small></button></div>
+      <div class="p-pointer">Hold and move to point</div>
+    </div></div>
+  </div>
+</div>
+</body></html>

@@ -1,4 +1,4 @@
-# Phone Remote relay
+# Kumpas relay
 
 Lets phones reach the laptop app from **any network with internet** (mobile
 data, a different Wi-Fi, hotel or conference Wi-Fi that keeps devices apart),
@@ -16,7 +16,7 @@ and can't read or forge them. The one-time pairing key in the QR code's
 cd relay
 npm install
 npm run dev                                   # http://127.0.0.1:8787
-../.venv/bin/phoneremote --app --relay http://127.0.0.1:8787
+../.venv/bin/kumpas --app --relay http://127.0.0.1:8787
 ```
 
 The control panel then shows an **Any network** QR code. A phone can't open
@@ -27,13 +27,13 @@ takes a minute and is free.
 
 1. Create a free Cloudflare account.
 2. `cd relay && npm install && npx wrangler login && npx wrangler deploy`.
-   It prints the relay's address, e.g. `https://phoneremote-relay.<you>.workers.dev`.
+   It prints the relay's address, e.g. `https://kumpas-relay.<you>.workers.dev`.
    That already has HTTPS; a domain of your own is optional.
-3. Put that address in `DEFAULT_RELAY_URL` in `src/phoneremote/relay.py` and
+3. Put that address in `DEFAULT_RELAY_URL` in `src/kumpas/relay.py` and
    build the installers again, so every copy of the app uses it. (To try it
-   first: `phoneremote --app --relay https://...`.)
+   first: `kumpas --app --relay https://...`.)
 4. Optional: use your own domain (Cloudflare dashboard → Workers & Pages →
-   phoneremote-relay → Settings → Domains & Routes).
+   kumpas-relay → Settings → Domains & Routes).
 
 `wrangler tail` shows live logs. Durable Objects with SQLite storage (used
 here) are available on the free plan.
@@ -56,7 +56,7 @@ charge for bandwidth, so screen pictures don't add data costs.
 ## Protocol
 
 See the comments at the top of `src/worker.js` and
-`src/phoneremote/relay.py`. In short: the laptop proves it owns its room by
+`src/kumpas/relay.py`. In short: the laptop proves it owns its room by
 sending the room secret whose SHA-256 gives the room id; phones send
 `{"i", "p", "b"}` requests, which the relay prefixes with the phone's id for
 the laptop, and the laptop's replies go back the same way.

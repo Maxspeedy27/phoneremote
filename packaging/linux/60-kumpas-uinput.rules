@@ -1,0 +1,3 @@
+# Kumpas: let the logged-in user create a virtual keyboard and mouse,
+# which is how the remote sends input on Wayland desktops.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"

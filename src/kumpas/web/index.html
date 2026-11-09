@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Kumpas</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
+<body>
+<nav>
+  <button data-tab="slides">Slides</button>
+  <button data-tab="pad">Touchpad</button>
+  <button data-tab="media">Media</button>
+  <button id="screen-toggle" class="icon" aria-pressed="false" aria-label="Show the laptop screen" title="Show the laptop screen">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</nav>
+
+<div id="screen-view" hidden>
+  <img id="screen-img" alt="The laptop's screen">
+  <svg id="screen-cursor" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 2l15 11-6.6 1.2 4 7.8-3 1.4-3.9-7.8L4 20z" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/></svg>
+  <p id="screen-msg">Loading the laptop screen&hellip;</p>
+  <button id="screen-full" class="screen-btn preview-only" aria-label="Fullscreen touch control">&#x26F6; Touch</button>
+  <button id="screen-mon" class="screen-btn" hidden>Screen 1</button>
+  <button id="screen-exit" class="screen-btn full-only" aria-label="Leave fullscreen">&#x2715;</button>
+  <button id="screen-kbd" class="screen-btn full-only" aria-label="Keyboard">&#x2328;&#xFE0E;</button>
+  <p id="screen-tip" class="full-only">Tap = click &middot; hold = right-click &middot; drag = drag<br>Two fingers = scroll &middot; pinch = zoom</p>
+  <form id="screen-type" class="full-only" hidden>
+    <input id="screen-text" type="text" placeholder="Type on the laptop" autocomplete="off"
+           autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+    <button type="button" id="screen-bksp" aria-label="Backspace">&#x232B;</button>
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<main>
+  <section id="tab-slides">
+    <div class="timer">
+      <div id="clock">00:00</div>
+      <button id="timer-toggle">Start</button>
+      <button id="timer-reset">Reset</button>
+    </div>
+    <label class="talk">Talk length
+      <select id="talk-length">
+        <option value="0">No limit (count up)</option>
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="20">20 min</option>
+        <option value="30">30 min</option>
+        <option value="45">45 min</option>
+        <option value="60">60 min</option>
+        <option value="90">90 min</option>
+      </select>
+    </label>
+    <div id="swipe">
+      <button id="prev" data-key="prev" data-label="&#9664; Back">&#9664;<small>Back</small></button>
+      <button id="next" data-key="next" data-label="Next &#9654;">&#9654;<small>Next</small></button>
+    </div>
+    <p class="hint">Swipe left for next, right for back</p>
+    <div id="pointer"><span id="pointer-hint">Drag here to point with the laptop&rsquo;s cursor</span></div>
+    <label class="tilt" id="tilt-row" hidden><input type="checkbox" id="tilt">
+      <span>Tilt to point: hold the strip above and move the phone like a laser pointer</span></label>
+    <p class="hint" id="tilt-hint" hidden>Tip: turn on &ldquo;Secure connection&rdquo; on the laptop to point by tilting the phone.</p>
+    <div class="grid">
+      <button data-key="start" data-label="Start slideshow">Start</button>
+      <button data-key="exit" data-label="Exit slideshow (Esc)">Exit</button>
+      <button data-key="blank" data-label="Black screen (B)">Black</button>
+    </div>
+    <div class="grid">
+      <button data-key="first" data-label="First slide">&#9198; First</button>
+      <button data-key="white" data-label="White screen (W)">White</button>
+      <button data-key="last" data-label="Last slide">Last &#9197;</button>
+    </div>
+    <form id="goto-form">
+      <input id="goto" type="number" inputmode="numeric" min="1" max="9999" placeholder="Go to slide number"
+             autocomplete="off" enterkeyhint="go">
+      <button type="submit">Go</button>
+    </form>
+  </section>
+
+  <section id="tab-media">
+    <p class="hint">Controls whatever is playing on the laptop: music, videos, slides with sound.</p>
+    <div class="grid">
+      <button data-key="prevtrack" data-label="Previous track">&#9198;<small>Previous</small></button>
+      <button data-key="playpause" data-label="Play / pause" class="primary">&#9199;<small>Play/Pause</small></button>
+      <button data-key="nexttrack" data-label="Next track">&#9197;<small>Next</small></button>
+    </div>
+    <div class="grid">
+      <button data-key="volumedown" data-label="Volume down">&minus;<small>Vol &minus;</small></button>
+      <button data-key="volumemute" data-label="Mute">&#8856;<small>Mute</small></button>
+      <button data-key="volumeup" data-label="Volume up">+<small>Vol +</small></button>
+    </div>
+    <p class="hint">In a video player or YouTube window</p>
+    <div class="grid">
+      <button data-key="prev" data-label="Rewind (&#8592;)">&#9194;&#xFE0E;<small>Rewind</small></button>
+      <button data-key="space" data-label="Play / pause (Space)">&#9251;<small>Space</small></button>
+      <button data-key="next" data-label="Forward (&#8594;)">&#9193;&#xFE0E;<small>Forward</small></button>
+    </div>
+    <button data-key="fullscreen" data-label="Fullscreen">Fullscreen</button>
+  </section>
+
+  <section id="tab-pad">
+    <div id="pad">Drag to move &middot; tap to click<br>Double-tap a text box: double-click + phone keyboard<br>Two-finger tap: right click &middot; two-finger drag: scroll</div>
+    <div class="grid">
+      <button data-click="left">Left</button>
+      <button id="hold">Hold</button>
+      <button data-click="right">Right</button>
+    </div>
+    <label class="speed">Speed <input id="speed" type="range" min="0.5" max="5" step="0.1"><span id="speed-val"></span></label>
+    <div class="grid">
+      <button data-key="back" data-label="Browser back">&#8592; Back</button>
+      <button data-key="pageup" data-label="Page Up">Page Up</button>
+      <button data-key="pagedown" data-label="Page Down">Page Down</button>
+      <button data-key="zoomout" data-label="Zoom out">Zoom &minus;</button>
+      <button data-key="zoomreset" data-label="Zoom reset">100%</button>
+      <button data-key="zoomin" data-label="Zoom in">Zoom +</button>
+    </div>
+    <button data-key="fullscreen" data-label="Fullscreen">Fullscreen</button>
+    <form id="type-form">
+      <input id="text" type="text" placeholder="Type text for the laptop" autocomplete="off"
+             autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+      <button type="submit">Send</button>
+    </form>
+    <div class="grid two">
+      <button data-key="enter" data-label="Enter">Enter &#9166;</button>
+      <button data-key="backspace" data-label="Backspace">&#9003; Backspace</button>
+    </div>
+  </section>
+</main>
+
+<div id="status">Connecting&hellip;</div>
+
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+  <h1 id="overlay-title">Connecting&hellip;</h1>
+  <div id="overlay-code"></div>
+  <p id="overlay-text"></p>
+  <button id="overlay-retry" hidden>Try again</button>
+</div>
+
+<script src="/static/nacl-fast.min.js"></script>
+<script src="/static/crypto.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@ from unittest import mock
 
 from PIL import Image
 
-from phoneremote import screen
+from kumpas import screen
 
 
 class FakeShot:

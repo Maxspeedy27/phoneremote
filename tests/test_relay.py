@@ -9,8 +9,8 @@ from pathlib import Path
 
 from websockets.sync.server import serve
 
-from phoneremote import relay
-from phoneremote.relay import RelayClient, host_socket_url, load_room_secret, phone_url, room_id
+from kumpas import relay
+from kumpas.relay import RelayClient, host_socket_url, load_room_secret, phone_url, room_id
 
 
 def wait_for(predicate, timeout=5.0):
