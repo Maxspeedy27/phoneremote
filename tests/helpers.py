@@ -19,6 +19,9 @@ class FakeBackend(Backend):
     def scroll(self, px):
         self.calls.append(("scroll", px))
 
+    def move_to(self, x, y):
+        self.calls.append(("move_to", x, y))
+
     def button(self, name, down):
         self.calls.append(("button", name, down))
 

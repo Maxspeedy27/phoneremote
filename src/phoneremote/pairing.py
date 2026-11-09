@@ -108,7 +108,7 @@ class Pairing:
         self._approval_lock = threading.Lock()  # one pairing prompt at a time
         self._pairing_key = new_key()
         self._device = store.load()
-        self._session = None  # [session id, last command number, last frame number]
+        self._session = None  # [session id, last command, last frame, last cursor poll number]
 
     @property
     def device(self):
@@ -179,12 +179,12 @@ class Pairing:
         with self._lock:
             if device is not self._device:
                 raise PairingError(*NOT_PAIRED)
-            self._session = [session_id, 0, 0]
+            self._session = [session_id, 0, 0, 0]
         return device, seal(device.key, {"t": "session", "s": session_id, "host": self.host})
 
     def _check_sequence(self, request, slot):
-        # Commands and screen frames are numbered separately (slots 1 and 2),
-        # since the phone sends them over parallel connections.
+        # Commands, screen frames and cursor polls are numbered separately
+        # (slots 1-3), since the phone sends them over parallel connections.
         seq = request.get("q")
         with self._lock:
             if self._session is None or request.get("s") != self._session[0]:
@@ -198,6 +198,12 @@ class Pairing:
         _, request = self._open(msg, "cmd")
         self._check_sequence(request, 1)
         return request.get("ops")
+
+    def open_cursor(self, msg):
+        """Verify a cursor-position poll; returns (device, request)."""
+        device, request = self._open(msg, "cursor")
+        self._check_sequence(request, 3)
+        return device, request
 
     def open_frame(self, msg):
         """Verify a screen-frame request; returns (device, request) for sealing the reply."""

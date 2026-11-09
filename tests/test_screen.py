@@ -43,7 +43,7 @@ class ScreenGrabberTest(unittest.TestCase):
 
     def test_jpeg_is_scaled_to_requested_width(self):
         g, _ = self.grabber()
-        jpeg, monitor, count = g.grab(1, 640)
+        jpeg, monitor, count, _ = g.grab(1, 640)
         image = Image.open(io.BytesIO(jpeg))
         self.assertEqual((image.format, image.size, monitor, count), ("JPEG", (640, 360), 1, 1))
         r, gr, b = image.getpixel((10, 10))
@@ -52,11 +52,11 @@ class ScreenGrabberTest(unittest.TestCase):
 
     def test_width_is_clamped_and_monitor_checked(self):
         g, fake = self.grabber(TWO)
-        jpeg, monitor, count = g.grab(7, 99999)
+        jpeg, monitor, count, _ = g.grab(7, 99999)
         self.assertEqual((monitor, count), (1, 2))   # unknown monitor falls back to the first
         self.assertEqual(Image.open(io.BytesIO(jpeg)).width, screen.MAX_WIDTH)
         g._cache = None
-        _, monitor, _ = g.grab(0, 100)               # 0 = all screens together
+        _, monitor, _, _ = g.grab(0, 100)               # 0 = all screens together
         self.assertEqual((monitor, fake.grabbed[-1]["width"]), (0, 3200))
         for bad in ("1", True, 1.5, None):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
@@ -68,6 +68,46 @@ class ScreenGrabberTest(unittest.TestCase):
         g.grab(1, 640)
         self.assertEqual(len(fake.grabbed), 1)
         self.assertTrue(g.viewing)
+
+    def test_cursor_position_and_touch_points(self):
+        g, _ = self.grabber(TWO)
+        with mock.patch.object(g, "_cursor_position", return_value=(1920 + 640, 360)):
+            *_, cursor = g.grab(2, 640)
+            self.assertEqual(cursor, [round(640 / 1279, 4), round(360 / 719, 4)])
+            g._cache = None
+            *_, cursor = g.grab(1, 640)
+            self.assertIsNone(cursor)   # the pointer is on the other monitor
+        # Fractions of a monitor map back to screen coordinates, offset included.
+        self.assertEqual(g.point(2, 0, 0), (1920, 0))
+        self.assertEqual(g.point(2, 1, 1), (1920 + 1279, 719))
+        self.assertEqual(g.point(1, 0.5, 0.5), (960, 540))
+        with self.assertRaises(ValueError):
+            g.point(5, 0.5, 0.5)
+        with mock.patch.object(g, "_cursor_position", return_value=None):
+            self.assertIsNone(g.grab(1, 640)[3])
+
+    def test_cursor_poll_between_frames(self):
+        g, fake = self.grabber(TWO)
+        with self.assertRaises(screen.ScreenUnavailable):
+            g.cursor(1)                       # no frame yet: monitor layout unknown
+        g.grab(1, 640)
+        with mock.patch.object(g, "_cursor_position", return_value=(959.5, 539.5)):
+            self.assertEqual(g.cursor(1), [round(959.5 / 1919, 4), round(539.5 / 1079, 4)])
+            self.assertIsNone(g.cursor(2))
+        self.assertEqual(len(fake.grabbed), 1)   # polls never capture the screen
+        g.enabled = False
+        with self.assertRaises(screen.ScreenUnavailable):
+            g.cursor(1)
+
+    def test_touch_points_need_the_screen_view(self):
+        g = screen.ScreenGrabber()
+        with self.assertRaises(ValueError):
+            g.point(1, 0.5, 0.5)       # no frame yet: no monitor layout
+        g, _ = self.grabber()
+        g.grab(1, 640)
+        g.enabled = False
+        with self.assertRaises(ValueError):
+            g.point(1, 0.5, 0.5)
 
     def test_unavailable_when_disabled_or_on_wayland(self):
         g = screen.ScreenGrabber(enabled=False)

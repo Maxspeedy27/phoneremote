@@ -28,7 +28,15 @@ class FakeScreen:
             raise ScreenUnavailable(self.reason)
         self.requests.append((monitor, width))
         self.viewing = True
-        return b"\xff\xd8jpeg", monitor, 2
+        return b"\xff\xd8jpeg", monitor, 2, [0.25, 0.5]
+
+    def point(self, monitor, fx, fy):
+        return round(fx * 1000), round(fy * 100) + monitor
+
+    def cursor(self, monitor):
+        if self.reason:
+            raise ScreenUnavailable(self.reason)
+        return [0.125, 0.75]
 
 
 class ServerTest(unittest.TestCase):
@@ -138,11 +146,31 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertNotIn("img", reply)   # only ciphertext on the wire
         frame = unseal(phone.device_key, reply)
-        self.assertEqual((b64d(frame["img"]), frame["m"], frame["n"]), (b"\xff\xd8jpeg", 2, 2))
+        self.assertEqual((b64d(frame["img"]), frame["m"], frame["n"], frame["c"]),
+                         (b"\xff\xd8jpeg", 2, 2, [0.25, 0.5]))
         self.assertEqual(self.screen.requests, [(2, 500)])
         self.assertIn("Test phone is viewing the screen.", self.logs)
         # Commands still work after frames: separate counters.
         self.assertEqual(self.post("/api/cmd", phone.command([]))[0], 200)
+
+    def test_cursor_polls_are_encrypted_and_light(self):
+        phone = self.paired_phone()
+        status, reply = self.post("/api/cursor", phone.cursor_poll(monitor=2))
+        self.assertEqual(status, 200)
+        self.assertEqual(unseal(phone.device_key, reply), {"t": "cursor", "c": [0.125, 0.75], "m": 2})
+        self.assertEqual(self.screen.requests, [])      # no screenshot taken for a poll
+        self.screen.reason = "Screen view is turned off on the laptop."
+        self.assertEqual(self.post("/api/cursor", phone.cursor_poll())[1]["code"], "screen")
+
+    def test_touchscreen_tap_clicks_at_the_point(self):
+        phone = self.paired_phone()
+        ops = [{"a": "abs", "x": 0.5, "y": 0.25, "m": 1}, {"a": "click", "b": "left"}]
+        self.assertEqual(self.post("/api/cmd", phone.command(ops))[0], 200)
+        self.assertEqual(self.backend.calls, [("move_to", 500, 26), ("click", "left")])
+        self.server.screen = None   # screen view turned off: no touch control
+        status, reply = self.post("/api/cmd", phone.command(ops))
+        self.assertEqual(status, 400)
+        self.assertIn("screen view", reply["error"])
 
     def test_frames_need_pairing_and_report_unavailable_screen(self):
         status, reply = self.post("/api/frame", {"d": "nobody", "n": "AAAA", "c": "AAAA"})

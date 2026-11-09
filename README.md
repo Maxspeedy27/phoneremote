@@ -20,10 +20,17 @@ or Bluetooth tethering.
 - **Media:** play/pause, previous/next track, volume and mute for whatever is
   playing on the laptop, plus rewind/forward/space for video players.
 - **Screen view:** a live, encrypted picture of the laptop screen at the top
-  of the phone, so you can see the projected slide while facing the audience,
-  or use the touchpad without looking up. Tap it to enlarge; switch monitors.
-  Only sent while the phone is looking at it, and the laptop shows when it is.
-  (Windows, macOS, Linux on X11; not yet on Wayland.)
+  of the phone, with the laptop's mouse pointer drawn on it, so you can see the
+  projected slide while facing the audience, or use the touchpad without
+  looking up. Tap it to enlarge; switch monitors. Only sent while the phone is
+  looking at it, and the laptop shows when it is. (Windows, macOS, Linux on
+  X11; not yet on Wayland.)
+- **Touchscreen:** the screen view's **Touch** button goes fullscreen (turn
+  the phone sideways) and the picture becomes a touchscreen for the laptop:
+  tap to click there, tap twice to double-click, hold to right-click, drag to
+  drag, two fingers to scroll, pinch to zoom in on small targets. A keyboard
+  button types into whatever you clicked. (Needs the pyautogui input method,
+  the default everywhere except Wayland.)
 - **Tilt to point:** over HTTPS, hold the pointer strip and move the phone like
   a laser pointer; let go and the cursor stays put.
 - **Touchpad:** move, tap to click, two-finger tap to right-click, two-finger

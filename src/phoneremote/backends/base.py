@@ -18,5 +18,9 @@ class Backend:
             self.button("left", False)
             self.holding = False
 
+    def move_to(self, x, y):
+        """Put the pointer at screen coordinates (touchscreen mode)."""
+        raise ValueError(f"Touch control isn't available with the {self.name} input method yet.")
+
     def close(self):
         pass

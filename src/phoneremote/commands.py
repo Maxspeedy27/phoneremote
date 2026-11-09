@@ -13,11 +13,22 @@ def _number(value, limit):
     return max(-limit, min(limit, value))
 
 
-def run_op(backend, op):
+def _fraction(value):
+    return max(0.0, min(1.0, float(_number(value, 1))))
+
+
+def run_op(backend, op, screen=None):
     if not isinstance(op, dict):
         raise ValueError("bad operation")
     action = op.get("a")
-    if action == "move":
+    if action == "abs":
+        # Touchscreen mode: put the pointer where the phone's picture of the
+        # screen was touched, given as fractions of that monitor.
+        if screen is None:
+            raise ValueError("Touch control needs the screen view, which is turned off on the laptop.")
+        x, y = screen.point(op.get("m"), _fraction(op.get("x")), _fraction(op.get("y")))
+        backend.move_to(x, y)
+    elif action == "move":
         dx = int(_number(op.get("dx"), MAX_MOVE))
         dy = int(_number(op.get("dy"), MAX_MOVE))
         if dx or dy:
@@ -49,8 +60,8 @@ def run_op(backend, op):
         raise ValueError("unknown action")
 
 
-def run_ops(backend, ops):
+def run_ops(backend, ops, screen=None):
     if not isinstance(ops, list) or len(ops) > MAX_OPS:
         raise ValueError("ops must be a list")
     for op in ops:
-        run_op(backend, op)
+        run_op(backend, op, screen)
