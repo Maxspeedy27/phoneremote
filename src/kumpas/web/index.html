@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Zoom is off on purpose: the touchpad and screen view use pinch gestures. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#0b0d12">
 <meta name="referrer" content="no-referrer">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -14,131 +15,202 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
-<nav>
-  <button data-tab="slides">Slides</button>
-  <button data-tab="pad">Touchpad</button>
-  <button data-tab="media">Media</button>
-  <button id="screen-toggle" class="icon" aria-pressed="false" aria-label="Show the laptop screen" title="Show the laptop screen">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+
+<!-- Icons (Lucide-style, 24px grid, 2px stroke), used with <svg><use href="#i-..."/></svg> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-slides" viewBox="0 0 24 24"><path d="M2 3h20M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3M7 21l5-5 5 5"/></symbol>
+    <symbol id="i-pad" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 15h18M12 15v5"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4v16l14-8z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-playpause" viewBox="0 0 24 24"><path d="M3 5v14l9-7zM16 5v14M21 5v14"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-exit" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+    <symbol id="i-black" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="currentColor"/></symbol>
+    <symbol id="i-white" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/></symbol>
+    <symbol id="i-first" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8zM5 19V5"/></symbol>
+    <symbol id="i-last" viewBox="0 0 24 24"><path d="m5 4 10 8-10 8zM19 5v14"/></symbol>
+    <symbol id="i-rewind" viewBox="0 0 24 24"><path d="M11 19 2 12l9-7zM22 19l-9-7 9-7z"/></symbol>
+    <symbol id="i-forward" viewBox="0 0 24 24"><path d="m13 19 9-7-9-7zM2 19l9-7-9-7z"/></symbol>
+    <symbol id="i-vol-down" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></symbol>
+    <symbol id="i-vol-up" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4zM22 9l-6 6M16 9l6 6"/></symbol>
+    <symbol id="i-space" viewBox="0 0 24 24"><path d="M4 10v4h16v-4"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M4.5 4.5 20 10.8l-6.6 1.9a1 1 0 0 0-.7.7L10.8 20z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol>
+    <symbol id="i-pgup" viewBox="0 0 24 24"><path d="m17 11-5-5-5 5M17 18l-5-5-5 5"/></symbol>
+    <symbol id="i-pgdn" viewBox="0 0 24 24"><path d="m7 6 5 5 5-5M7 13l5 5 5-5"/></symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6M11 8v6"/></symbol>
+    <symbol id="i-zoom-reset" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-enter" viewBox="0 0 24 24"><path d="M20 4v7a4 4 0 0 1-4 4H4M9 10l-5 5 5 5"/></symbol>
+    <symbol id="i-bksp" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.3.5l-6.4 5.8a1 1 0 0 0 0 1.4l6.4 5.8A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zM12 9l6 6M18 9l-6 6"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="conn">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="status">Connecting&hellip;</span>
+    <svg class="ic lock" role="img" aria-label="Secure connection"><use href="#i-lock"/></svg>
+  </div>
+  <button id="screen-toggle" class="icon-btn" aria-pressed="false" aria-label="Show the laptop screen" title="Show the laptop screen">
+    <svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>
   </button>
-</nav>
+</header>
 
 <div id="screen-view" hidden>
   <img id="screen-img" alt="The laptop's screen">
   <svg id="screen-cursor" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 2l15 11-6.6 1.2 4 7.8-3 1.4-3.9-7.8L4 20z" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/></svg>
   <p id="screen-msg">Loading the laptop screen&hellip;</p>
-  <button id="screen-full" class="screen-btn preview-only" aria-label="Fullscreen touch control">&#x26F6; Touch</button>
+  <button id="screen-full" class="screen-btn preview-only" aria-label="Fullscreen touch control"><svg class="ic" aria-hidden="true"><use href="#i-full"/></svg>Touch</button>
   <button id="screen-mon" class="screen-btn" hidden>Screen 1</button>
-  <button id="screen-exit" class="screen-btn full-only" aria-label="Leave fullscreen">&#x2715;</button>
-  <button id="screen-kbd" class="screen-btn full-only" aria-label="Keyboard">&#x2328;&#xFE0E;</button>
+  <button id="screen-exit" class="screen-btn round full-only" aria-label="Leave fullscreen"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+  <button id="screen-kbd" class="screen-btn round full-only" aria-label="Keyboard"><svg class="ic" aria-hidden="true"><use href="#i-keyboard"/></svg></button>
   <p id="screen-tip" class="full-only">Tap = click &middot; hold = right-click &middot; drag = drag<br>Two fingers = scroll &middot; pinch = zoom</p>
   <form id="screen-type" class="full-only" hidden>
-    <input id="screen-text" type="text" placeholder="Type on the laptop" autocomplete="off"
-           autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
-    <button type="button" id="screen-bksp" aria-label="Backspace">&#x232B;</button>
-    <button type="submit">Send</button>
+    <input id="screen-text" type="text" placeholder="Type: it appears on the laptop" aria-label="Type on the laptop: letters appear as you type"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter">
+    <button type="button" id="screen-bksp" class="ghost" aria-label="Backspace"><svg class="ic" aria-hidden="true"><use href="#i-bksp"/></svg></button>
   </form>
 </div>
 
 <main>
+  <!-- ===== Slides ===== -->
   <section id="tab-slides">
-    <div class="timer">
-      <div id="clock">00:00</div>
-      <button id="timer-toggle">Start</button>
-      <button id="timer-reset">Reset</button>
+    <div class="card timer">
+      <div class="timer-row">
+        <div id="clock" aria-label="Talk timer">00:00</div>
+        <button id="timer-reset" class="icon-btn" aria-label="Reset timer"><svg class="ic" aria-hidden="true"><use href="#i-reset"/></svg></button>
+        <button id="timer-toggle" class="pill"><svg class="ic ic-play" aria-hidden="true"><use href="#i-play"/></svg><svg class="ic ic-pause" aria-hidden="true"><use href="#i-pause"/></svg><span id="timer-label">Start</span></button>
+      </div>
+      <label class="talk">Talk length
+        <select id="talk-length">
+          <option value="0">No limit (count up)</option>
+          <option value="5">5 min</option>
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="20">20 min</option>
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">60 min</option>
+          <option value="90">90 min</option>
+        </select>
+      </label>
     </div>
-    <label class="talk">Talk length
-      <select id="talk-length">
-        <option value="0">No limit (count up)</option>
-        <option value="5">5 min</option>
-        <option value="10">10 min</option>
-        <option value="15">15 min</option>
-        <option value="20">20 min</option>
-        <option value="30">30 min</option>
-        <option value="45">45 min</option>
-        <option value="60">60 min</option>
-        <option value="90">90 min</option>
-      </select>
-    </label>
+
     <div id="swipe">
-      <button id="prev" data-key="prev" data-label="&#9664; Back">&#9664;<small>Back</small></button>
-      <button id="next" data-key="next" data-label="Next &#9654;">&#9654;<small>Next</small></button>
+      <button id="prev" data-key="prev" data-label="Previous slide"><svg class="ic" aria-hidden="true"><use href="#i-left"/></svg><small>Back</small></button>
+      <button id="next" data-key="next" data-label="Next slide"><svg class="ic" aria-hidden="true"><use href="#i-right"/></svg><small>Next</small></button>
     </div>
-    <p class="hint">Swipe left for next, right for back</p>
-    <div id="pointer"><span id="pointer-hint">Drag here to point with the laptop&rsquo;s cursor</span></div>
-    <label class="tilt" id="tilt-row" hidden><input type="checkbox" id="tilt">
-      <span>Tilt to point: hold the strip above and move the phone like a laser pointer</span></label>
+    <p class="hint">Or swipe: left for next, right for back</p>
+
+    <div id="pointer"><svg class="ic" aria-hidden="true"><use href="#i-pointer"/></svg><span id="pointer-hint">Drag here to point with the laptop&rsquo;s cursor</span></div>
+    <label class="switch" id="tilt-row" hidden><input type="checkbox" id="tilt" role="switch">
+      <span>Tilt to point<small>Hold the strip above and move the phone like a laser pointer</small></span></label>
     <p class="hint" id="tilt-hint" hidden>Tip: turn on &ldquo;Secure connection&rdquo; on the laptop to point by tilting the phone.</p>
-    <div class="grid">
-      <button data-key="start" data-label="Start slideshow">Start</button>
-      <button data-key="exit" data-label="Exit slideshow (Esc)">Exit</button>
-      <button data-key="blank" data-label="Black screen (B)">Black</button>
+
+    <h2 class="group">Slideshow</h2>
+    <div class="grid tiles">
+      <button data-key="start" data-label="Start slideshow"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Start</button>
+      <button data-key="exit" data-label="Exit slideshow (Esc)"><svg class="ic" aria-hidden="true"><use href="#i-exit"/></svg>Exit</button>
+      <button data-key="blank" data-label="Black screen (B)"><svg class="ic" aria-hidden="true"><use href="#i-black"/></svg>Black</button>
+      <button data-key="first" data-label="First slide"><svg class="ic" aria-hidden="true"><use href="#i-first"/></svg>First</button>
+      <button data-key="white" data-label="White screen (W)"><svg class="ic" aria-hidden="true"><use href="#i-white"/></svg>White</button>
+      <button data-key="last" data-label="Last slide"><svg class="ic" aria-hidden="true"><use href="#i-last"/></svg>Last</button>
     </div>
-    <div class="grid">
-      <button data-key="first" data-label="First slide">&#9198; First</button>
-      <button data-key="white" data-label="White screen (W)">White</button>
-      <button data-key="last" data-label="Last slide">Last &#9197;</button>
-    </div>
-    <form id="goto-form">
+    <form id="goto-form" class="field">
+      <svg class="ic field-ic" aria-hidden="true"><use href="#i-hash"/></svg>
       <input id="goto" type="number" inputmode="numeric" min="1" max="9999" placeholder="Go to slide number"
-             autocomplete="off" enterkeyhint="go">
+             aria-label="Slide number" autocomplete="off" enterkeyhint="go">
       <button type="submit">Go</button>
     </form>
   </section>
 
+  <!-- ===== Media ===== -->
   <section id="tab-media">
-    <p class="hint">Controls whatever is playing on the laptop: music, videos, slides with sound.</p>
-    <div class="grid">
-      <button data-key="prevtrack" data-label="Previous track">&#9198;<small>Previous</small></button>
-      <button data-key="playpause" data-label="Play / pause" class="primary">&#9199;<small>Play/Pause</small></button>
-      <button data-key="nexttrack" data-label="Next track">&#9197;<small>Next</small></button>
+    <h2 class="group">Music &amp; sound<small>Whatever is playing on the laptop</small></h2>
+    <div class="card transport">
+      <div class="grid">
+        <button data-key="prevtrack" data-label="Previous track" aria-label="Previous track"><svg class="ic" aria-hidden="true"><use href="#i-first"/></svg></button>
+        <button data-key="playpause" data-label="Play / pause" aria-label="Play or pause" class="primary round-xl"><svg class="ic" aria-hidden="true"><use href="#i-playpause"/></svg></button>
+        <button data-key="nexttrack" data-label="Next track" aria-label="Next track"><svg class="ic" aria-hidden="true"><use href="#i-last"/></svg></button>
+      </div>
+      <div class="grid">
+        <button data-key="volumedown" data-label="Volume down"><svg class="ic" aria-hidden="true"><use href="#i-vol-down"/></svg><small>Vol &minus;</small></button>
+        <button data-key="volumemute" data-label="Mute"><svg class="ic" aria-hidden="true"><use href="#i-mute"/></svg><small>Mute</small></button>
+        <button data-key="volumeup" data-label="Volume up"><svg class="ic" aria-hidden="true"><use href="#i-vol-up"/></svg><small>Vol +</small></button>
+      </div>
     </div>
-    <div class="grid">
-      <button data-key="volumedown" data-label="Volume down">&minus;<small>Vol &minus;</small></button>
-      <button data-key="volumemute" data-label="Mute">&#8856;<small>Mute</small></button>
-      <button data-key="volumeup" data-label="Volume up">+<small>Vol +</small></button>
+
+    <h2 class="group">Video player<small>YouTube, VLC and other players</small></h2>
+    <div class="grid tiles">
+      <button data-key="prev" data-label="Rewind (&#8592;)"><svg class="ic" aria-hidden="true"><use href="#i-rewind"/></svg>Rewind</button>
+      <button data-key="space" data-label="Play / pause (Space)"><svg class="ic" aria-hidden="true"><use href="#i-space"/></svg>Space</button>
+      <button data-key="next" data-label="Forward (&#8594;)"><svg class="ic" aria-hidden="true"><use href="#i-forward"/></svg>Forward</button>
     </div>
-    <p class="hint">In a video player or YouTube window</p>
-    <div class="grid">
-      <button data-key="prev" data-label="Rewind (&#8592;)">&#9194;&#xFE0E;<small>Rewind</small></button>
-      <button data-key="space" data-label="Play / pause (Space)">&#9251;<small>Space</small></button>
-      <button data-key="next" data-label="Forward (&#8594;)">&#9193;&#xFE0E;<small>Forward</small></button>
-    </div>
-    <button data-key="fullscreen" data-label="Fullscreen">Fullscreen</button>
+    <button data-key="fullscreen" data-label="Fullscreen" class="wide"><svg class="ic" aria-hidden="true"><use href="#i-full"/></svg>Fullscreen</button>
   </section>
 
+  <!-- ===== Touchpad ===== -->
   <section id="tab-pad">
-    <div id="pad">Drag to move &middot; tap to click<br>Double-tap a text box: double-click + phone keyboard<br>Two-finger tap: right click &middot; two-finger drag: scroll</div>
-    <div class="grid">
-      <button data-click="left">Left</button>
-      <button id="hold">Hold</button>
-      <button data-click="right">Right</button>
+    <div class="trackpad">
+      <div id="pad">
+        <span class="pad-hint">
+          <span>Drag to move &middot; tap to click</span>
+          <span>Two fingers: tap to right-click, drag to scroll</span>
+          <span>Double-tap a text box to type in it</span>
+        </span>
+      </div>
+      <div class="mouse-btns">
+        <button data-click="left">Left</button>
+        <button id="hold">Hold</button>
+        <button data-click="right">Right</button>
+      </div>
     </div>
-    <label class="speed">Speed <input id="speed" type="range" min="0.5" max="5" step="0.1"><span id="speed-val"></span></label>
-    <div class="grid">
-      <button data-key="back" data-label="Browser back">&#8592; Back</button>
-      <button data-key="pageup" data-label="Page Up">Page Up</button>
-      <button data-key="pagedown" data-label="Page Down">Page Down</button>
-      <button data-key="zoomout" data-label="Zoom out">Zoom &minus;</button>
-      <button data-key="zoomreset" data-label="Zoom reset">100%</button>
-      <button data-key="zoomin" data-label="Zoom in">Zoom +</button>
-    </div>
-    <button data-key="fullscreen" data-label="Fullscreen">Fullscreen</button>
-    <form id="type-form">
-      <input id="text" type="text" placeholder="Type text for the laptop" autocomplete="off"
-             autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
-      <button type="submit">Send</button>
+
+    <form id="type-form" class="field">
+      <svg class="ic field-ic" aria-hidden="true"><use href="#i-keyboard"/></svg>
+      <input id="text" type="text" placeholder="Type here: it appears on the laptop" aria-label="Type on the laptop: letters appear as you type"
+             aria-describedby="type-help" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter">
     </form>
+    <p class="hint" id="type-help">Letters appear on the laptop as you type. Your keyboard&rsquo;s Enter presses Enter.</p>
     <div class="grid two">
-      <button data-key="enter" data-label="Enter">Enter &#9166;</button>
-      <button data-key="backspace" data-label="Backspace">&#9003; Backspace</button>
+      <button data-key="enter" data-label="Enter" class="row-btn"><svg class="ic" aria-hidden="true"><use href="#i-enter"/></svg>Enter</button>
+      <button data-key="backspace" data-label="Backspace" class="row-btn"><svg class="ic" aria-hidden="true"><use href="#i-bksp"/></svg>Backspace</button>
     </div>
+
+    <h2 class="group">Browse</h2>
+    <div class="grid tiles">
+      <button data-key="back" data-label="Browser back"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg>Back</button>
+      <button data-key="pageup" data-label="Page Up"><svg class="ic" aria-hidden="true"><use href="#i-pgup"/></svg>Page up</button>
+      <button data-key="pagedown" data-label="Page Down"><svg class="ic" aria-hidden="true"><use href="#i-pgdn"/></svg>Page down</button>
+      <button data-key="zoomout" data-label="Zoom out"><svg class="ic" aria-hidden="true"><use href="#i-zoom-out"/></svg>Zoom &minus;</button>
+      <button data-key="zoomreset" data-label="Zoom reset"><svg class="ic" aria-hidden="true"><use href="#i-zoom-reset"/></svg>100%</button>
+      <button data-key="zoomin" data-label="Zoom in"><svg class="ic" aria-hidden="true"><use href="#i-zoom-in"/></svg>Zoom +</button>
+    </div>
+    <button data-key="fullscreen" data-label="Fullscreen" class="wide"><svg class="ic" aria-hidden="true"><use href="#i-full"/></svg>Fullscreen</button>
+    <label class="speed">Pointer speed <input id="speed" type="range" min="0.5" max="5" step="0.1"><span id="speed-val"></span></label>
   </section>
 </main>
 
-<div id="status">Connecting&hellip;</div>
+<nav class="tabbar" aria-label="Remote">
+  <button data-tab="slides"><svg class="ic" aria-hidden="true"><use href="#i-slides"/></svg><span>Slides</span></button>
+  <button data-tab="pad"><svg class="ic" aria-hidden="true"><use href="#i-pad"/></svg><span>Touchpad</span></button>
+  <button data-tab="media"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg><span>Media</span></button>
+</nav>
 
 <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+  <img src="/static/icon.svg" width="64" height="64" alt="">
   <h1 id="overlay-title">Connecting&hellip;</h1>
   <div id="overlay-code"></div>
   <p id="overlay-text"></p>
