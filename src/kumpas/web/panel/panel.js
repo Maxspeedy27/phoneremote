@@ -27,6 +27,7 @@ const fmtTime = t => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit'
 const fmtDate = t => new Date(t * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
 let lastQrUrl = null, lastAddresses = '', lastPendingCode = null, lastLog = '';
+let pendingTotal = 60;   // seconds the current pairing request had when it appeared
 let chosenMode = null;   // 'relay' or 'local' once the user picks a tab; else automatic
 let busy = false;   // don't let a poll overwrite a switch the user is changing
 
@@ -80,7 +81,8 @@ function render(s) {
       lastAddresses = addrKey;
     }
 
-    text($('#device'), s.device ? s.device.name + ', paired ' + fmtDate(s.device.paired_at) : 'None yet.');
+    text($('#device'), s.device ? s.device.name + ' · paired ' + fmtDate(s.device.paired_at)
+                                : 'No phone yet. Scan the code to pair one.');
     show($('#forget'), !!s.device);
 
     if (!busy) {
@@ -98,7 +100,7 @@ function render(s) {
     show($('#access'), s.accessibility === false);
 
     const pill = $('#pill');
-    pill.className = 'pill' + (s.screen.viewing ? ' live' : s.device ? ' ok' : '');
+    pill.className = 'pill' + (s.pending ? ' wait' : s.screen.viewing ? ' live' : s.device ? ' ok' : '');
     text(pill, s.pending ? 'Waiting for you' : s.screen.viewing ? 'Screen shared' : s.device ? 'Ready' : 'Not paired');
   } else {
     text($('#pill'), 'Not running');
@@ -113,9 +115,11 @@ function render(s) {
     text($('#pending-left'), p.left + ' s left');
     if (p.code !== lastPendingCode) {
       lastPendingCode = p.code;
+      pendingTotal = Math.max(p.left, 1);
       $('#allow').focus();
       notify(p);
     }
+    $('#pending-bar').style.width = Math.max(0, Math.min(100, 100 * p.left / pendingTotal)) + '%';
   } else {
     lastPendingCode = null;
   }
