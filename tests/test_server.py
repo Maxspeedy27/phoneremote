@@ -1,13 +1,34 @@
 import http.client
 import json
+import socket
+import ssl
+import tempfile
 import threading
 import unittest
+from pathlib import Path
 
+from phoneremote import tls
+from phoneremote.crypto import b64d, unseal
 from phoneremote.pairing import Pairing
+from phoneremote.screen import ScreenUnavailable
 from phoneremote.server import RemoteServer
 
 from helpers import Approver, FakeBackend, temp_store
 from test_pairing import Phone
+
+
+class FakeScreen:
+    def __init__(self, reason=None):
+        self.reason = reason
+        self.viewing = False
+        self.requests = []
+
+    def grab(self, monitor, width):
+        if self.reason:
+            raise ScreenUnavailable(self.reason)
+        self.requests.append((monitor, width))
+        self.viewing = True
+        return b"\xff\xd8jpeg", monitor, 2
 
 
 class ServerTest(unittest.TestCase):
@@ -17,7 +38,9 @@ class ServerTest(unittest.TestCase):
         self.backend = FakeBackend()
         self.pairing = Pairing(temp_store(self), Approver(True), host="laptop")
         self.logs = []
-        self.server = RemoteServer(("127.0.0.1", 0), self.backend, self.pairing, log=self.logs.append)
+        self.screen = FakeScreen()
+        self.server = RemoteServer(("127.0.0.1", 0), self.backend, self.pairing, screen=self.screen,
+                                   log=self.logs.append)
         thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         thread.start()
         self.addCleanup(self.server.server_close)
@@ -54,7 +77,9 @@ class ServerTest(unittest.TestCase):
         self.assertIn("script-src 'self'", csp)
         self.assertNotIn("unsafe-inline", csp)
         self.assertEqual(r.getheader("Referrer-Policy"), "no-referrer")
-        for path in ("/static/app.js", "/static/crypto.js", "/static/nacl-fast.min.js", "/static/style.css"):
+        for path in ("/static/app.js", "/static/crypto.js", "/static/nacl-fast.min.js", "/static/style.css",
+                     "/manifest.webmanifest", "/static/icon-192.png", "/static/icon-512.png",
+                     "/apple-touch-icon.png", "/static/icon.svg"):
             with self.subTest(path=path):
                 r, body = self.get(path)
                 self.assertEqual(r.status, 200)
@@ -106,6 +131,77 @@ class ServerTest(unittest.TestCase):
         r = self.conn.getresponse()
         r.read()
         self.assertEqual(r.status, 413)
+
+    def test_screen_frames_are_encrypted_for_the_phone(self):
+        phone = self.paired_phone()
+        status, reply = self.post("/api/frame", phone.frame(monitor=2, width=500))
+        self.assertEqual(status, 200)
+        self.assertNotIn("img", reply)   # only ciphertext on the wire
+        frame = unseal(phone.device_key, reply)
+        self.assertEqual((b64d(frame["img"]), frame["m"], frame["n"]), (b"\xff\xd8jpeg", 2, 2))
+        self.assertEqual(self.screen.requests, [(2, 500)])
+        self.assertIn("Test phone is viewing the screen.", self.logs)
+        # Commands still work after frames: separate counters.
+        self.assertEqual(self.post("/api/cmd", phone.command([]))[0], 200)
+
+    def test_frames_need_pairing_and_report_unavailable_screen(self):
+        status, reply = self.post("/api/frame", {"d": "nobody", "n": "AAAA", "c": "AAAA"})
+        self.assertEqual((status, reply["code"]), (401, "unpaired"))
+        phone = self.paired_phone()
+        self.screen.reason = "Screen view is turned off on the laptop."
+        status, reply = self.post("/api/frame", phone.frame())
+        self.assertEqual((status, reply["code"], reply["error"]), (503, "screen", self.screen.reason))
+        self.server.screen = None
+        self.assertEqual(self.post("/api/frame", phone.frame())[1]["code"], "screen")
+
+
+class HttpsServerTest(unittest.TestCase):
+    """The same server with a self-signed certificate."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        cert, key = tls.self_signed(Path(tmp.name), ["127.0.0.1"], "testhost")
+        self.server = RemoteServer(("127.0.0.1", 0), FakeBackend(),
+                                   Pairing(temp_store(self), Approver(True), host="laptop"),
+                                   ssl_context=tls.server_context(cert, key), log=lambda m: None)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+        self.port = self.server.server_address[1]
+        self.client_context = ssl.create_default_context(cafile=str(cert))
+
+    def test_page_served_over_tls_with_the_certificate(self):
+        conn = http.client.HTTPSConnection("127.0.0.1", self.port, context=self.client_context, timeout=10)
+        self.addCleanup(conn.close)
+        conn.request("GET", "/")
+        r = conn.getresponse()
+        self.assertEqual(r.status, 200)
+        self.assertIn(b"/static/app.js", r.read())
+        self.assertEqual(self.server.scheme, "https")
+
+    def test_plain_http_is_redirected_to_https(self):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        self.addCleanup(conn.close)
+        conn.request("GET", "/static/app.js?x=1")
+        r = conn.getresponse()
+        self.assertEqual((r.status, r.getheader("Location")),
+                         (301, f"https://127.0.0.1:{self.port}/static/app.js?x=1"))
+
+    def test_redirect_refuses_header_injection(self):
+        with socket.create_connection(("127.0.0.1", self.port), timeout=10) as s:
+            s.sendall(b"GET / HTTP/1.1\r\nHost: evil.example\rLocation: x\r\n\r\n")
+            self.assertTrue(s.recv(200).startswith(b"HTTP/1.1 400"))
+        with socket.create_connection(("127.0.0.1", self.port), timeout=10) as s:
+            s.sendall(b"GET / HTTP/1.1\r\nHost: a b\r\n\r\n")
+            self.assertTrue(s.recv(200).startswith(b"HTTP/1.1 400"))
+
+    def test_failed_handshake_does_not_stop_the_server(self):
+        bad = ssl.create_default_context()   # doesn't trust the self-signed certificate
+        with socket.create_connection(("127.0.0.1", self.port), timeout=10) as raw:
+            with self.assertRaises(ssl.SSLError):
+                bad.wrap_socket(raw, server_hostname="127.0.0.1")
+        self.test_page_served_over_tls_with_the_certificate()
 
 
 if __name__ == "__main__":

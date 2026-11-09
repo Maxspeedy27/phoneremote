@@ -31,6 +31,14 @@ class Phone:
     def accept_session(self, reply):
         self.session = unseal(self.device_key, reply)["s"]
         self.seq = 0
+        self.frame_seq = 0
+
+    def frame(self, monitor=1, width=640, seq=None):
+        self.frame_seq = getattr(self, "frame_seq", 0) + 1 if seq is None else seq
+        msg = seal(self.device_key, {"t": "frame", "s": self.session, "q": self.frame_seq,
+                                     "m": monitor, "w": width})
+        msg["d"] = self.device_id
+        return msg
 
     def command(self, ops, seq=None):
         self.seq = self.seq + 1 if seq is None else seq
@@ -108,6 +116,25 @@ class PairingTest(unittest.TestCase):
         phone.accept_session(reply)
         self.assertRejected("session", self.pairing.open_command, old)
         self.pairing.open_command(phone.command([]))
+
+    def test_frames_and_commands_are_numbered_separately(self):
+        phone = self.paired_phone()
+        # Frames and commands travel on parallel connections, so a high frame
+        # number must not make the next command look like a replay.
+        for _ in range(5):
+            self.pairing.open_frame(phone.frame())
+        self.assertEqual(self.pairing.open_command(phone.command([{"a": "up"}])), [{"a": "up"}])
+        device, request = self.pairing.open_frame(phone.frame(monitor=2))
+        self.assertEqual((device.name, request["m"]), ("Test phone", 2))
+
+    def test_replayed_or_mistyped_frame_rejected(self):
+        phone = self.paired_phone()
+        msg = phone.frame()
+        self.pairing.open_frame(msg)
+        self.assertRejected("session", self.pairing.open_frame, msg)
+        # A frame request can't be passed off as a command, nor the other way round.
+        self.assertRejected("bad-request", self.pairing.open_command, phone.frame())
+        self.assertRejected("bad-request", self.pairing.open_frame, phone.command([]))
 
     def test_commands_with_wrong_device_key_rejected(self):
         phone = self.paired_phone()

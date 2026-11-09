@@ -1,0 +1,92 @@
+# Tests, then builds the installers on each OS (PyInstaller can't cross-compile).
+# Pushing a tag like v0.3.0 also publishes them as a GitHub release.
+name: Build installers
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Unit tests (Node is preinstalled for the JS/Python crypto check)
+        working-directory: tests
+        run: python -m unittest -v
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04     # oldest supported glibc, so the .deb runs on more distros
+          - os: windows-latest
+          - os: macos-latest     # Apple Silicon
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install . "pyinstaller>=6"
+
+      - name: Install Inno Setup if missing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Build
+        run: python packaging/build.py
+
+      - name: Check the built app starts (Linux)
+        if: runner.os == 'Linux'
+        run: dist/phoneremote/phoneremote --version
+      - name: Check the built app starts (macOS)
+        if: runner.os == 'macOS'
+        run: '"dist/Phone Remote.app/Contents/MacOS/PhoneRemote" --version'
+      - name: Check the built app starts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\PhoneRemote\PhoneRemote.exe -ArgumentList '--version' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "PhoneRemote.exe exited with $($p.ExitCode)" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ runner.os }}
+          path: |
+            dist/*.deb
+            dist/*.dmg
+            dist/*-setup.exe
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish a GitHub release with the installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "Phone Remote $GITHUB_REF_NAME" --generate-notes
