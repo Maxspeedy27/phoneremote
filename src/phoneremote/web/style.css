@@ -124,8 +124,32 @@ nav button.icon svg { width: 24px; height: 24px; }
 #screen-msg { position: absolute; margin: 0; padding: 10px 14px; max-width: 90%; text-align: center;
   font-size: 13px; color: var(--text); background: rgba(15, 17, 21, .85); border-radius: 10px; }
 #screen-msg:empty { display: none; }
-#screen-mon { position: absolute; top: 8px; right: 8px; min-height: 0; padding: 6px 10px; font-size: 13px;
-  background: rgba(35, 39, 51, .9); }
+.screen-btn { position: absolute; min-height: 0; padding: 6px 10px; font-size: 13px;
+  background: rgba(35, 39, 51, .85); z-index: 2; }
+#screen-mon { top: 8px; right: 8px; }
+#screen-full { bottom: 8px; right: 8px; }
+#screen-cursor { position: absolute; left: 0; top: 0; width: 12px; height: 12px; pointer-events: none;
+  z-index: 1; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); transition: transform 30ms linear; }
+#screen-img { transform-origin: 0 0; }
+
+/* Fullscreen touch control */
+#screen-view.full {
+  position: fixed; inset: 0; z-index: 20; margin: 0; height: auto; border: 0; border-radius: 0;
+  touch-action: none; padding: env(safe-area-inset-top) env(safe-area-inset-right)
+  env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+#screen-view:not(.full) .full-only, #screen-view.full .preview-only { display: none; }
+#screen-view.full #screen-mon { top: 10px; right: 64px; }
+#screen-exit { top: 10px; left: 10px; font-size: 18px; padding: 8px 14px; }
+#screen-kbd { top: 10px; right: 10px; font-size: 18px; padding: 8px 12px; }
+#screen-tip { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); margin: 0;
+  padding: 8px 14px; border-radius: 10px; background: rgba(15, 17, 21, .85); color: var(--text);
+  font-size: 13px; text-align: center; pointer-events: none; transition: opacity .6s; white-space: nowrap; }
+#screen-tip.gone { opacity: 0; }
+#screen-type { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3; }
+#screen-type input { min-height: 44px; background: rgba(23, 26, 33, .95); }
+#screen-type button { min-height: 44px; padding: 0 14px; }
+#screen-type #screen-bksp { background: var(--btn); }
 .tilt { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
 .tilt input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
 #pointer.tilting { border: 1px solid var(--danger); }

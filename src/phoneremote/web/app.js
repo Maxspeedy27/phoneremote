@@ -77,6 +77,7 @@ try { if (device) deviceKey = b64d(device.key); } catch (e) { device = null; }
 let pairingKey = null;   // one-time key from the QR code's #k=...
 let session = null, seq = 0;
 let frameSeq = 0;        // screen frames are numbered separately from commands
+let cursorSeq = 0;       // and so are cursor-position polls
 let connecting = null;
 
 function takePairingKeyFromUrl() {
@@ -125,6 +126,7 @@ async function hello() {
   session = reply.s;
   seq = 0;
   frameSeq = 0;
+  cursorSeq = 0;
 }
 
 function connect() {
@@ -169,7 +171,9 @@ let moveX = 0, moveY = 0, scrollAcc = 0;   // accumulated, not yet sent
 let inflight = false;
 let pendingLabel = '';
 
+let pendingAbs = null;   // latest touchscreen drag position, not yet sent
 function flushMotion() {
+  if (pendingAbs) { queue.push(pendingAbs); pendingAbs = null; }
   const dx = Math.trunc(moveX), dy = Math.trunc(moveY);
   if (dx || dy) { queue.push({ a: 'move', dx, dy }); moveX -= dx; moveY -= dy; }
   const sy = Math.trunc(scrollAcc);
@@ -563,14 +567,14 @@ pad.addEventListener('touchend', touchEnd, { passive: false });
 pad.addEventListener('touchcancel', touchEnd, { passive: false });
 
 // ---------- Typing ----------
-function sendText(withEnter) {
-  const s = textEl.value;
+function sendText(withEnter, el = textEl) {
+  const s = el.value;
   if (!s && !withEnter) return;
   buzz();
   const shown = s.length > 30 ? s.slice(0, 30) + '…' : s;
   if (s) send({ a: 'type', s }, 'Typed: ' + shown);
   if (withEnter) send({ a: 'key', k: 'enter' }, s ? 'Typed + Enter: ' + shown : 'Enter');
-  textEl.value = '';
+  el.value = '';
 }
 // Send button: type the text only. Keep the keyboard open for more typing.
 $('#type-form').addEventListener('submit', e => {
@@ -588,15 +592,23 @@ textEl.addEventListener('keydown', e => {
 
 // ---------- Live view of the laptop screen ----------
 // Frames are requested one at a time, only while the view is open and the
-// page visible, and arrive encrypted like everything else.
-const FRAME_INTERVAL_MS = 250;
-const screenView = $('#screen-view'), screenImg = $('#screen-img');
+// page visible, and arrive encrypted like everything else. Each frame says
+// where the mouse pointer is (screen captures leave it out), and we draw it.
+const FRAME_INTERVAL_MS = 250, FULL_FRAME_INTERVAL_MS = 150;
+const CURSOR_INTERVAL_MS = 30;  // the pointer is polled on its own, ~30 times a second
+const screenView = $('#screen-view'), screenImg = $('#screen-img'), cursorEl = $('#screen-cursor');
 const screenMsg = $('#screen-msg'), screenToggle = $('#screen-toggle'), monBtn = $('#screen-mon');
 let screenOn = !!store.get('screenOn', false);
 let monitor = Number(store.get('monitor', 1)) || 1;
 let monitorCount = 1;
-let frameLoopRunning = false, frameUrl = null;
+let frameLoopRunning = false, frameUrl = null, cursorLoopRunning = false;
+// Whether a picture is showing. (Not img.naturalWidth: that drops to 0 while the
+// next frame loads, which made the arrow flicker and stopped the pointer polls.)
+let haveFrame = false;
+let cursorFrac = null;          // [x, y] as fractions of the picture, or null
+let localCursorAt = 0;          // when we last moved the pointer ourselves
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const isFull = () => screenView.classList.contains('full');
 
 function setScreen(on, start = true) {
   screenOn = on;
@@ -604,18 +616,65 @@ function setScreen(on, start = true) {
   screenView.hidden = !on;
   screenToggle.classList.toggle('active', on);
   screenToggle.setAttribute('aria-pressed', String(on));
+  if (!on && isFull()) setFull(false);
   if (on && start) frameLoop();
+}
+function monitorLabel() {
+  return monitor === 0 ? 'All screens' : 'Screen ' + monitor + ' of ' + monitorCount;
+}
+function placeCursor() {
+  const r = screenImg.getBoundingClientRect(), v = screenView.getBoundingClientRect();
+  if (!cursorFrac || !haveFrame || !r.width) { cursorEl.setAttribute('hidden', ''); return; }
+  // Scale the arrow with the picture, like the real pointer on a shrunken
+  // screen, but keep it big enough to see (and bigger when zoomed in).
+  const size = Math.round(Math.min(22, Math.max(10, r.width * 0.014)));
+  cursorEl.style.width = cursorEl.style.height = size + 'px';
+  const tipX = size * 3 / 24, tipY = size * 2 / 24;   // the arrow's tip in its 24-unit drawing
+  cursorEl.removeAttribute('hidden');   // an SVG element: no .hidden property
+  cursorEl.style.transform = 'translate(' + (r.left - v.left + cursorFrac[0] * r.width - tipX) + 'px,' +
+                             (r.top - v.top + cursorFrac[1] * r.height - tipY) + 'px)';
 }
 function showFrame(reply) {
   const url = URL.createObjectURL(new Blob([b64d(reply.img)], { type: 'image/jpeg' }));
   screenImg.src = url;
   if (frameUrl) URL.revokeObjectURL(frameUrl);
   frameUrl = url;
+  haveFrame = true;
   screenMsg.textContent = '';
+  if (reply.m !== monitor) resetZoom();
   monitorCount = reply.n;
   monitor = reply.m;
   monBtn.hidden = monitorCount < 2;
-  monBtn.textContent = monitor === 0 ? 'All screens' : 'Screen ' + monitor + ' of ' + monitorCount;
+  monBtn.textContent = monitorLabel();
+  // Right after a tap or drag, trust our own idea of where the pointer is:
+  // the frame may have been captured before the pointer moved.
+  // The pointer poll is fresher than a frame, so only use the frame's when it isn't running.
+  if (!cursorLoopRunning && performance.now() - localCursorAt > 600) cursorFrac = reply.c || null;
+  if (screenImg.complete) placeCursor(); else screenImg.onload = placeCursor;
+}
+async function cursorLoop() {
+  if (cursorLoopRunning) return;
+  cursorLoopRunning = true;
+  try {
+    while (screenOn && !document.hidden && session && haveFrame) {
+      const started = performance.now();
+      try {
+        const msg = seal(deviceKey, { t: 'cursor', s: session, q: ++cursorSeq, m: monitor });
+        msg.d = device.id;
+        const reply = unseal(deviceKey, await request('/api/cursor', msg, 3000));
+        if (reply.m === monitor && performance.now() - localCursorAt > 600) {
+          cursorFrac = reply.c || null;
+          placeCursor();
+        }
+      } catch (e) {
+        break;   // the frame loop reports problems and restarts this loop
+      }
+      const wait = CURSOR_INTERVAL_MS - (performance.now() - started);
+      if (wait > 0) await sleep(wait);
+    }
+  } finally {
+    cursorLoopRunning = false;
+  }
 }
 async function frameLoop() {
   if (frameLoopRunning) return;
@@ -628,14 +687,18 @@ async function frameLoop() {
       }
       const started = performance.now(), sentWith = session;
       try {
-        const scale = Math.min(window.devicePixelRatio || 1, 2);
-        const w = Math.min(1280, Math.round(screenView.clientWidth * scale));
+        // Sharper pictures in fullscreen, and more so when zoomed in.
+        const scale = Math.min(window.devicePixelRatio || 1, 2) * (isFull() ? Math.min(zoom.s, 2) : 1);
+        const w = Math.min(isFull() ? 1920 : 1280, Math.round(screenView.clientWidth * scale));
         const msg = seal(deviceKey, { t: 'frame', s: session, q: ++frameSeq, m: monitor, w });
         msg.d = device.id;
         showFrame(unseal(deviceKey, await request('/api/frame', msg, 8000)));
+        if (!cursorLoopRunning) cursorLoop();
       } catch (e) {
         if (e.code === 'screen') {           // turned off or unsupported on the laptop
           screenImg.removeAttribute('src');
+          haveFrame = false;
+          cursorEl.setAttribute('hidden', '');
           screenMsg.textContent = e.message + ' Tap to try again.';
           break;
         }
@@ -644,7 +707,7 @@ async function frameLoop() {
         screenMsg.textContent = e.message;
         await sleep(1500);
       }
-      const wait = FRAME_INTERVAL_MS - (performance.now() - started);
+      const wait = (isFull() ? FULL_FRAME_INTERVAL_MS : FRAME_INTERVAL_MS) - (performance.now() - started);
       if (wait > 0) await sleep(wait);
     }
   } finally {
@@ -653,17 +716,197 @@ async function frameLoop() {
 }
 screenToggle.addEventListener('click', () => { buzz(8); setScreen(!screenOn); });
 screenView.addEventListener('click', e => {
-  if (e.target === monBtn) return;
+  if (isFull() || e.target.closest('button, form')) return;
   if (!frameLoopRunning) { screenMsg.textContent = 'Loading…'; frameLoop(); return; }
   screenView.classList.toggle('big');   // tap to enlarge, tap again to shrink
+  requestAnimationFrame(placeCursor);
 });
 monBtn.addEventListener('click', () => {
   buzz(8);
   monitor = monitor >= monitorCount ? 0 : monitor + 1;   // 1, 2, ..., then all screens
   store.set('monitor', monitor);
-  monBtn.textContent = monitor === 0 ? 'All screens' : 'Screen ' + monitor + ' of ' + monitorCount;
+  monBtn.textContent = monitorLabel();
+  resetZoom();
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && screenOn) frameLoop(); });
+window.addEventListener('resize', () => { resetZoom(); placeCursor(); });
+
+// ---------- Fullscreen touch control ----------
+// The picture of the laptop screen becomes a touchscreen: a tap clicks at
+// that spot, holding right-clicks, dragging drags, two fingers scroll, and
+// pinching zooms the picture (not the laptop) to hit small targets.
+const LONG_PRESS_MS = 550, DOUBLE_TAP_REUSE_PX = 24;
+const zoom = { s: 1, tx: 0, ty: 0 };
+let touch = null;     // the gesture in progress
+let lastTapAt = null; // {t, x, y, p}: reuse its point so double-clicks land on one spot
+const tipEl = $('#screen-tip'), typeForm = $('#screen-type'), screenText = $('#screen-text');
+
+function setFull(on) {
+  screenView.classList.toggle('full', on);
+  screenView.classList.remove('big');
+  resetZoom();
+  if (on) {
+    try {
+      const p = screenView.requestFullscreen && screenView.requestFullscreen({ navigationUI: 'hide' });
+      if (p && p.then) p.then(() => screen.orientation && screen.orientation.lock &&
+                                    screen.orientation.lock('landscape').catch(() => {})).catch(() => {});
+    } catch (e) {}
+    tipEl.classList.remove('gone');
+    setTimeout(() => tipEl.classList.add('gone'), 4000);
+    if (!frameLoopRunning) frameLoop();
+  } else {
+    typeForm.hidden = true;
+    try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+  requestAnimationFrame(placeCursor);
+}
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isFull()) setFull(false); });
+$('#screen-full').addEventListener('click', () => { buzz(8); setFull(true); });
+$('#screen-exit').addEventListener('click', () => { buzz(8); endDrag(); setFull(false); });
+$('#screen-kbd').addEventListener('click', () => {
+  buzz(8);
+  typeForm.hidden = !typeForm.hidden;
+  if (!typeForm.hidden) screenText.focus();
+});
+typeForm.addEventListener('submit', e => { e.preventDefault(); sendText(false, screenText); screenText.focus(); });
+screenText.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.isComposing) return;
+  e.preventDefault();
+  sendText(true, screenText);
+});
+$('#screen-bksp').addEventListener('click', () => { buzz(); send({ a: 'key', k: 'backspace' }, 'Backspace'); screenText.focus(); });
+
+function resetZoom() { zoom.s = 1; zoom.tx = 0; zoom.ty = 0; applyZoom(); }
+function applyZoom() {
+  // Keep the zoomed picture covering the spot the unzoomed one occupied.
+  const w = screenImg.offsetWidth, h = screenImg.offsetHeight;
+  zoom.tx = Math.min(0, Math.max(w * (1 - zoom.s), zoom.tx));
+  zoom.ty = Math.min(0, Math.max(h * (1 - zoom.s), zoom.ty));
+  screenImg.style.transform = zoom.s === 1 ? '' : 'translate(' + zoom.tx + 'px,' + zoom.ty + 'px) scale(' + zoom.s + ')';
+  placeCursor();
+}
+function picPoint(x, y) {
+  const r = screenImg.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+  const fx = (x - r.left) / r.width, fy = (y - r.top) / r.height;
+  if (fx < -0.02 || fx > 1.02 || fy < -0.02 || fy > 1.02) return null;   // outside the picture
+  return { x: Math.min(1, Math.max(0, fx)), y: Math.min(1, Math.max(0, fy)) };
+}
+function absOp(p) { return { a: 'abs', x: Math.round(p.x * 1e4) / 1e4, y: Math.round(p.y * 1e4) / 1e4, m: monitor }; }
+function pointAtPicture(p) { cursorFrac = [p.x, p.y]; localCursorAt = performance.now(); placeCursor(); }
+const fingerGap = ts => Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
+function endDrag() {
+  if (touch && touch.dragging) { touch.dragging = false; send({ a: 'up' }, 'Dropped'); }
+}
+
+screenView.addEventListener('touchstart', e => {
+  if (!isFull() || e.target.closest('button, form')) return;
+  e.preventDefault();
+  const ts = e.touches;
+  if (ts.length === 1 && !touch) {
+    const t = ts[0];
+    touch = { kind: 'one', x0: t.clientX, y0: t.clientY, t0: performance.now(), moved: false, dragging: false, done: false };
+    const mine = touch;
+    mine.timer = setTimeout(() => {                 // held still: right-click
+      if (touch !== mine || mine.moved) return;
+      const p = picPoint(mine.x0, mine.y0);
+      if (!p) return;
+      mine.done = true;
+      buzz(30);
+      pointAtPicture(p);
+      send(absOp(p));
+      send({ a: 'click', b: 'right' }, 'Right click');
+    }, LONG_PRESS_MS);
+  } else if (ts.length >= 2) {
+    if (touch) { clearTimeout(touch.timer); endDrag(); }
+    const c = centroid(ts);
+    const v = screenView.getBoundingClientRect();
+    // The picture point under the fingers, in the image's own (unzoomed) pixels.
+    const ox = v.left + screenImg.offsetLeft, oy = v.top + screenImg.offsetTop;
+    touch = { kind: 'two', t0: performance.now(), c0: c, last: c, gap0: fingerGap(ts), mode: null, s0: zoom.s,
+              ox, oy, ux: (c.x - ox - zoom.tx) / zoom.s, uy: (c.y - oy - zoom.ty) / zoom.s };
+  }
+}, { passive: false });
+
+screenView.addEventListener('touchmove', e => {
+  if (!touch || !isFull()) return;
+  e.preventDefault();
+  if (touch.kind === 'one' && e.touches.length === 1) {
+    const t = e.touches[0];
+    if (!touch.moved && Math.hypot(t.clientX - touch.x0, t.clientY - touch.y0) > TAP_SLOP_PX) {
+      touch.moved = true;
+      clearTimeout(touch.timer);
+      const p0 = picPoint(touch.x0, touch.y0);
+      if (p0 && !touch.done) {                      // press where the finger first landed
+        send(absOp(p0));
+        send({ a: 'down' }, 'Dragging');
+        touch.dragging = true;
+      }
+    }
+    if (touch.dragging) {
+      const p = picPoint(t.clientX, t.clientY);
+      if (p) { pendingAbs = absOp(p); pointAtPicture(p); }
+    }
+  } else if (touch.kind === 'two' && e.touches.length >= 2) {
+    const c = centroid(e.touches), gap = fingerGap(e.touches);
+    if (!touch.mode) {
+      if (Math.abs(gap - touch.gap0) > 30) touch.mode = 'zoom';
+      else if (Math.hypot(c.x - touch.c0.x, c.y - touch.c0.y) > TAP_SLOP_PX) {
+        touch.mode = zoom.s > 1 ? 'pan' : 'scroll';
+        const p = picPoint(touch.c0.x, touch.c0.y);
+        if (touch.mode === 'scroll' && p) { send(absOp(p)); pointAtPicture(p); }   // scroll what's under the fingers
+      }
+    }
+    if (touch.mode === 'zoom' || touch.mode === 'pan') {
+      if (touch.mode === 'zoom') zoom.s = Math.min(5, Math.max(1, touch.s0 * gap / touch.gap0));
+      zoom.tx = c.x - touch.ox - zoom.s * touch.ux;
+      zoom.ty = c.y - touch.oy - zoom.s * touch.uy;
+      applyZoom();
+    } else if (touch.mode === 'scroll') {
+      scrollAcc += (c.y - touch.last.y) * SCROLL_GAIN;
+    }
+    touch.last = c;
+  }
+}, { passive: false });
+
+function screenTouchEnd(e) {
+  if (!touch || !isFull()) return;
+  e.preventDefault();
+  if (touch.kind === 'one') {
+    clearTimeout(touch.timer);
+    if (touch.dragging) {
+      endDrag();
+    } else if (!touch.moved && !touch.done && e.type === 'touchend') {
+      let p = picPoint(touch.x0, touch.y0);
+      const now = performance.now();
+      if (p) {
+        if (lastTapAt && now - lastTapAt.t < DOUBLE_TAP_MS &&
+            Math.hypot(touch.x0 - lastTapAt.x, touch.y0 - lastTapAt.y) < DOUBLE_TAP_REUSE_PX) {
+          p = lastTapAt.p;              // same spot, so the laptop sees a double-click
+          lastTapAt = null;
+        } else {
+          lastTapAt = { t: now, x: touch.x0, y: touch.y0, p };
+        }
+        buzz();
+        pointAtPicture(p);
+        send(absOp(p));
+        send({ a: 'click', b: 'left' }, 'Click');
+      }
+    }
+    touch = null;
+  } else if (e.touches.length === 0) {
+    // Two fingers tapped without moving: right-click, as on the touchpad.
+    if (!touch.mode && e.type === 'touchend' && performance.now() - touch.t0 < TAP_MAX_MS * 1.6) {
+      const p = picPoint(touch.c0.x, touch.c0.y);
+      if (p) { buzz(); pointAtPicture(p); send(absOp(p)); send({ a: 'click', b: 'right' }, 'Right click'); }
+    }
+    touch = null;
+  }
+}
+screenView.addEventListener('touchend', screenTouchEnd, { passive: false });
+screenView.addEventListener('touchcancel', screenTouchEnd, { passive: false });
+
 setScreen(screenOn, false);   // connect() starts the frames once connected
 
 takePairingKeyFromUrl();

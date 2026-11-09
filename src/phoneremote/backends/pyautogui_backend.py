@@ -58,6 +58,12 @@ class PyAutoGuiBackend(Backend):
         else:
             self.gui.moveRel(dx, dy, duration=0)
 
+    def move_to(self, x, y):
+        if IS_MAC and self.holding:
+            self.gui.platformModule._dragTo(x, y, "left")   # see move()
+        else:
+            self.gui.moveTo(x, y, duration=0)
+
     def scroll(self, px):
         self.scroll_acc += px * self.SCROLL_UNITS_PER_PX
         units = int(self.scroll_acc)

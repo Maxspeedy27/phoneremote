@@ -172,6 +172,7 @@ class RemoteHandler(BaseHTTPRequestHandler):
             "/api/hello": self._hello,
             "/api/cmd": self._command,
             "/api/frame": self._frame,
+            "/api/cursor": self._cursor,
         }.get(urlsplit(self.path).path)
         if route is None:
             return self._error(404, "not-found", "Not found")
@@ -201,8 +202,16 @@ class RemoteHandler(BaseHTTPRequestHandler):
     def _command(self, msg):
         ops = self.server.pairing.open_command(msg)
         with self.server.input_lock:
-            run_ops(self.server.backend, ops)
+            run_ops(self.server.backend, ops, self.server.screen)
         self._send_json(200, {"ok": True})
+
+    def _cursor(self, msg):
+        device, request = self.server.pairing.open_cursor(msg)
+        screen = self.server.screen
+        if screen is None:
+            raise ScreenUnavailable("Screen view is turned off on the laptop.")
+        monitor = request.get("m", 1)
+        self._send_json(200, seal(device.key, {"t": "cursor", "c": screen.cursor(monitor), "m": monitor}))
 
     def _frame(self, msg):
         device, request = self.server.pairing.open_frame(msg)
@@ -210,7 +219,8 @@ class RemoteHandler(BaseHTTPRequestHandler):
         if screen is None:
             raise ScreenUnavailable("Screen view is turned off on the laptop.")
         was_viewing = screen.viewing
-        jpeg, monitor, count = screen.grab(request.get("m", 1), request.get("w", 720))
+        jpeg, monitor, count, cursor = screen.grab(request.get("m", 1), request.get("w", 720))
         if not was_viewing:
             self.server.log(f"{device.name} is viewing the screen.")
-        self._send_json(200, seal(device.key, {"t": "frame", "img": b64e(jpeg), "m": monitor, "n": count}))
+        self._send_json(200, seal(device.key, {"t": "frame", "img": b64e(jpeg), "m": monitor, "n": count,
+                                               "c": cursor}))

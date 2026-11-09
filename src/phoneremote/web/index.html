@@ -25,8 +25,19 @@
 
 <div id="screen-view" hidden>
   <img id="screen-img" alt="The laptop's screen">
+  <svg id="screen-cursor" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 2l15 11-6.6 1.2 4 7.8-3 1.4-3.9-7.8L4 20z" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/></svg>
   <p id="screen-msg">Loading the laptop screen&hellip;</p>
-  <button id="screen-mon" hidden>Screen 1</button>
+  <button id="screen-full" class="screen-btn preview-only" aria-label="Fullscreen touch control">&#x26F6; Touch</button>
+  <button id="screen-mon" class="screen-btn" hidden>Screen 1</button>
+  <button id="screen-exit" class="screen-btn full-only" aria-label="Leave fullscreen">&#x2715;</button>
+  <button id="screen-kbd" class="screen-btn full-only" aria-label="Keyboard">&#x2328;&#xFE0E;</button>
+  <p id="screen-tip" class="full-only">Tap = click &middot; hold = right-click &middot; drag = drag<br>Two fingers = scroll &middot; pinch = zoom</p>
+  <form id="screen-type" class="full-only" hidden>
+    <input id="screen-text" type="text" placeholder="Type on the laptop" autocomplete="off"
+           autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+    <button type="button" id="screen-bksp" aria-label="Backspace">&#x232B;</button>
+    <button type="submit">Send</button>
+  </form>
 </div>
 
 <main>
