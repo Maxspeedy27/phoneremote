@@ -58,3 +58,12 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .warn-text { color: var(--warn); }
 
 [hidden] { display: none !important; }
+
+.tabs { display: flex; gap: 6px; background: var(--bg); padding: 4px; border-radius: 12px; margin: 4px 0 12px; }
+.tabs button { flex: 1; padding: 8px 10px; font-size: 14px; background: transparent; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--btn); color: var(--text); }
+details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol { padding-left: 20px; margin: 10px 0; }
+details li { margin-bottom: 8px; }
+.ok-text { color: var(--ok); }

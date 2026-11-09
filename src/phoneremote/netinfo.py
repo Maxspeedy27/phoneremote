@@ -1,8 +1,18 @@
+import ipaddress
+import os
 import socket
 import struct
 import sys
 
 BLUETOOTH = "Bluetooth"
+USB = "USB cable"
+HOTSPOT = "iPhone hotspot"
+# Linux drivers for a phone sharing its connection over a USB cable:
+# Android's USB tethering (RNDIS / CDC Ethernet / NCM) and iPhone's (ipheth).
+USB_TETHER_DRIVERS = {"rndis_host", "cdc_ether", "cdc_ncm", "cdc_eem", "ipheth"}
+# An iPhone's Personal Hotspot always hands out addresses in this range,
+# whether the laptop joined it over Wi-Fi, Bluetooth or a cable.
+IPHONE_HOTSPOT = ipaddress.ip_network("172.20.10.0/28")
 SIOCGIFADDR = 0x8915  # Linux ioctl: an interface's IPv4 address
 # Interfaces a phone can't reach: loopback, containers, VMs.
 VIRTUAL_PREFIXES = ("lo", "docker", "br-", "veth", "virbr", "vmnet", "vboxnet")
@@ -46,15 +56,25 @@ def _linux_interfaces():
     return found
 
 
+def _linux_driver(name):
+    """The kernel driver behind a Linux network interface, e.g. "rndis_host"."""
+    try:
+        return os.path.basename(os.readlink(f"/sys/class/net/{name}/device/driver"))
+    except OSError:
+        return ""
+
+
 def phone_addresses():
     """Addresses a phone might reach this laptop on, best guess first, as
-    (ip, kind) pairs. kind is BLUETOOTH for Bluetooth tethering, else "".
+    (ip, kind) pairs. kind is BLUETOOTH, USB or HOTSPOT when the laptop is
+    linked to a phone that way, else "".
 
-    A Bluetooth tethering address comes first: the phone providing it can
-    always reach it, even when the laptop is also on a Wi-Fi the phone isn't.
-    Bluetooth interfaces are only recognised on Linux (BlueZ's bnep*).
+    Links to a phone come first: that phone can always reach them, even when
+    the laptop is also on a Wi-Fi the phone isn't (or that keeps devices apart).
+    Bluetooth and USB links are recognised on Linux by interface; an iPhone
+    hotspot is recognised everywhere by its address range.
     """
-    bluetooth, others = [], []
+    tethered, others = {}, []
     if sys.platform.startswith("linux"):
         try:
             interfaces = _linux_interfaces()
@@ -62,11 +82,22 @@ def phone_addresses():
             interfaces = []
         for name, ip in interfaces:
             if name.startswith("bnep"):
-                bluetooth.append(ip)
+                tethered[ip] = BLUETOOTH
+            elif name.startswith("usb") or _linux_driver(name) in USB_TETHER_DRIVERS:
+                tethered[ip] = USB
             elif not name.startswith(VIRTUAL_PREFIXES):
                 others.append(ip)
     result = []
-    for ip in bluetooth + _route_guesses() + others:
-        if ip not in [r[0] for r in result] and not ip.startswith(("127.", "0.")):
-            result.append((ip, BLUETOOTH if ip in bluetooth else ""))
+    for ip in list(tethered) + _route_guesses() + others:
+        if ip in [r[0] for r in result] or ip.startswith(("127.", "0.")):
+            continue
+        kind = tethered.get(ip, "")
+        if not kind:
+            try:
+                kind = HOTSPOT if ipaddress.ip_address(ip) in IPHONE_HOTSPOT else ""
+            except ValueError:
+                pass
+        result.append((ip, kind))
+    # Phone links first, keeping the order found otherwise.
+    result.sort(key=lambda r: 0 if r[1] else 1)
     return result or [("127.0.0.1", "")]

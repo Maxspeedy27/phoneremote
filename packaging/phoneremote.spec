@@ -14,7 +14,8 @@ from phoneremote import __version__  # noqa: E402
 IS_MAC = sys.platform == "darwin"
 IS_WIN = sys.platform.startswith("win")
 
-hidden = ["phoneremote.backends.pyautogui_backend", *collect_submodules("mss")]
+hidden = ["phoneremote.backends.pyautogui_backend", "phoneremote.relay", "websockets.sync.client",
+          *collect_submodules("mss")]
 if IS_WIN:
     hidden += ["pyautogui._pyautogui_win"]
 elif IS_MAC:

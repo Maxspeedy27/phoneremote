@@ -79,9 +79,8 @@ remembered phone), `--no-confirm` (skip the approval prompt; less secure).
 
 ## Pairing
 
-1. Start Phone Remote and scan the QR code with the phone's camera. The phone
-   must be on the same Wi-Fi as the laptop, or connected to it by Bluetooth
-   tethering (see below).
+1. Start Phone Remote and scan the QR code with the phone's camera (see
+   *Connecting* below for which code).
 2. The phone shows a 6-digit code, and the laptop asks whether to allow it.
    Check that the codes match, then click Allow in the control panel (or type
    `y` in the terminal version).
@@ -89,7 +88,34 @@ remembered phone), `--no-confirm` (skip the approval prompt; less secure).
    (bookmark it, or add it to the home screen). Pairing another phone
    replaces the first one.
 
-## No shared Wi-Fi? Use Bluetooth tethering
+## Connecting
+
+- **Any network (internet relay):** with a relay set up (see
+  [relay/README.md](relay/README.md)), the control panel's **Any network**
+  code works wherever both devices have internet: the phone on mobile data,
+  a different Wi-Fi, or venue Wi-Fi that keeps devices apart. The page comes
+  from the relay over real HTTPS, and everything stays end-to-end encrypted.
+  If the laptop goes offline, the phone says so and reconnects by itself.
+  Turn it off in the panel's settings (or `--no-relay`) for local-only use.
+- **Same Wi-Fi:** the **Same Wi-Fi / no internet** code connects directly,
+  with no internet needed.
+- **No internet at all:** link the phone and laptop directly, then use the
+  **Same Wi-Fi / no internet** code. Phone Remote recognises these links and
+  puts the right address in the code:
+  - *Phone hotspot* (easiest): turn on the phone's hotspot and join it from
+    the laptop. (An iPhone's hotspot needs a mobile plan that allows it.)
+  - *USB cable*: plug the phone in, then Android: Settings → Hotspot &
+    tethering → USB tethering; iPhone: Settings → Personal Hotspot → Allow
+    Others to Join (Windows also needs Apple's Apple Devices app). USB links
+    are recognised by interface on Linux and by the iPhone's hotspot
+    addresses everywhere; elsewhere pick the address in the panel.
+  - *Bluetooth tethering*: see below.
+
+The phone keeps a separate pairing for the relay page and the local page, as
+browsers treat them as different sites; pairing one replaces the other on
+the laptop (one paired phone at a time).
+
+### Bluetooth tethering
 
 Phone Remote also works where there's no Wi-Fi, or where the Wi-Fi blocks
 devices from seeing each other (common in hotels and conference venues). Let
@@ -120,6 +146,11 @@ Things to know:
 - The touchpad may feel slightly less responsive than over Wi-Fi.
 
 ## Security model
+
+The internet relay passes along encrypted messages it can't read: the pairing
+key in the QR code's `#fragment` never reaches it, and a laptop must prove it
+owns its room with a secret kept in the config folder (`relay.json`).
+
 
 Designed so that other people on the same Wi-Fi, or someone who photographs
 the QR code on a projected screen, can't control the laptop or read typed text.
@@ -215,6 +246,7 @@ Layout:
       server.py       phone HTTP(S) server and routes
       screen.py       screen view snapshots (mss + Pillow)
       tls.py          self-signed or user-supplied HTTPS certificates
+      relay.py        keeping the laptop connected to the internet relay
       pairing.py      pairing, device storage, sessions, replay protection
       crypto.py       secretbox helpers shared with web/crypto.js
       commands.py     validating and applying phone operations
@@ -222,6 +254,7 @@ Layout:
       backends/       pyautogui and uinput input backends
       web/            phone page (HTML, CSS, JS), icons, vendored tweetnacl
       web/panel/      control panel page
+    relay/            internet relay: Cloudflare Worker + Durable Object (see relay/README.md)
     packaging/        PyInstaller spec, build script, Linux/Windows installer files, icons
     tests/
 

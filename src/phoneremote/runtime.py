@@ -8,7 +8,7 @@ import json
 import socket
 import threading
 
-from .netinfo import BLUETOOTH, phone_addresses
+from .netinfo import BLUETOOTH, HOTSPOT, USB, phone_addresses
 from .pairing import Pairing
 from .screen import ScreenGrabber
 from .server import RemoteServer
@@ -22,7 +22,7 @@ class SetupError(Exception):
 class Settings:
     """Small JSON file of choices made in the control panel."""
 
-    DEFAULTS = {"https": False, "screen": True}
+    DEFAULTS = {"https": False, "screen": True, "relay": True, "relay_url": ""}
 
     def __init__(self, path):
         self.path = path
@@ -47,7 +47,7 @@ class Settings:
 
 class Runtime:
     def __init__(self, backend, store, approver, port=8765, ip=None, https=False,
-                 cert=None, key=None, hostname=None, screen=True, log=print):
+                 cert=None, key=None, hostname=None, screen=True, relay_url=None, log=print):
         self.backend = backend
         self.log = log
         self.hostname = hostname
@@ -68,6 +68,8 @@ class Runtime:
         self.port = self.server.server_address[1]
         self.set_https(https)
         self._thread = None
+        self.relay = None
+        self.set_relay(relay_url)
 
     def _open_server(self, port):
         last_error = None
@@ -96,7 +98,36 @@ class Runtime:
 
     @property
     def network(self):
-        return "connected over Bluetooth tethering" if self.kind == BLUETOOTH else "on the same Wi-Fi"
+        return {BLUETOOTH: "connected over Bluetooth tethering", USB: "connected with a USB cable",
+                HOTSPOT: "on the same hotspot"}.get(self.kind, "on the same Wi-Fi")
+
+    # ----- internet relay -----
+
+    def set_relay(self, url):
+        """Connect to an internet relay at url (None or "" to stop using one)."""
+        if self.relay is not None:
+            self.relay.stop()
+            self.relay = None
+        if url:
+            from .relay import RelayClient, load_room_secret
+
+            self.relay = RelayClient(url, load_room_secret(config_dir() / "relay.json"),
+                                     self.server.handle_api, log=self.log,
+                                     on_change=lambda state: self._changed("relay"))
+            if self._thread is not None or self._serving:
+                self.relay.start()
+        self._changed("relay")
+
+    @property
+    def relay_online(self):
+        return self.relay is not None and self.relay.state == "online"
+
+    @property
+    def relay_pairing_url(self):
+        """The link that works from any network, through the relay (None without one)."""
+        if self.relay is None:
+            return None
+        return f"{self.relay.phone_url}#{self.pairing.pairing_fragment()}"
 
     def set_ip(self, ip):
         known = dict(self.addresses)
@@ -158,15 +189,24 @@ class Runtime:
             except Exception:
                 pass
 
+    _serving = False
+
     def start(self):
         """Serve phones on a background thread."""
         self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self._thread.start()
+        if self.relay:
+            self.relay.start()
 
     def serve_forever(self):
+        self._serving = True
+        if self.relay:
+            self.relay.start()
         self.server.serve_forever()
 
     def close(self):
+        if self.relay:
+            self.relay.stop()
         if self._thread:
             self.server.shutdown()
         with self.server.input_lock:

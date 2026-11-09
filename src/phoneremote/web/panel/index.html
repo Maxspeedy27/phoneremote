@@ -36,12 +36,27 @@
   <div class="grid">
     <section class="card" id="pair-card">
       <h2 id="pair-title">Pair your phone</h2>
-      <p class="muted" id="pair-help">Scan this code with the phone's camera. The phone needs to be <span id="network"></span>.</p>
+      <div class="tabs" id="qr-tabs" role="tablist" hidden>
+        <button role="tab" data-mode="relay">Any network</button>
+        <button role="tab" data-mode="local">Same Wi-Fi / no internet</button>
+      </div>
+      <p class="muted" id="pair-help"></p>
       <div class="qr"><img id="qr" alt="QR code to pair a phone"></div>
-      <label class="field">Laptop address
-        <select id="address"></select>
-      </label>
-      <p class="muted small">If the phone can't open the page, choose another address. <span id="url-wrap">Or type: <code id="base"></code></span></p>
+      <div id="local-only">
+        <label class="field">Laptop address
+          <select id="address"></select>
+        </label>
+        <p class="muted small">If the phone can't open the page, choose another address. Or type: <code id="base"></code></p>
+      </div>
+      <details id="offline-help">
+        <summary>No internet? Connect without it</summary>
+        <ol>
+          <li><b>Phone hotspot</b> (easiest): turn on Hotspot on the phone (in the quick settings or Control Center), join its Wi-Fi from this laptop, then scan the code under <i>Same Wi-Fi / no internet</i>.</li>
+          <li><b>USB cable</b>: plug the phone into this laptop. Android: Settings &rarr; Hotspot &amp; tethering &rarr; USB tethering. iPhone: Settings &rarr; Personal Hotspot &rarr; Allow Others to Join (Windows also needs Apple's Apple Devices app). Then scan the same code.</li>
+          <li><b>Bluetooth</b>: pair the phone in this laptop's Bluetooth settings and turn on Bluetooth tethering on the phone.</li>
+        </ol>
+        <p class="muted small">Phone Remote notices these connections and puts the right address in the code.</p>
+      </details>
     </section>
 
     <div class="stack">
@@ -53,6 +68,10 @@
 
       <section class="card">
         <h2>Settings</h2>
+        <div id="relay-setting" hidden>
+          <label class="switch"><input type="checkbox" id="relay-on"><span>Connect over the internet</span></label>
+          <p class="muted small" id="relay-note"></p>
+        </div>
         <label class="switch"><input type="checkbox" id="screen-on"><span>Let the phone see this screen</span></label>
         <p class="muted small" id="screen-note">Shows a live picture of the laptop screen on the phone, encrypted, only while you look at it.</p>
         <p class="live" id="viewing" hidden><span class="dot"></span>The phone is viewing your screen</p>
