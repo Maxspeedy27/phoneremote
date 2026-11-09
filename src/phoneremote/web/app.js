@@ -11,13 +11,19 @@ const TAP_MAX_MS = 250, TAP_SLOP_PX = 10;
 const DOUBLE_TAP_MS = 350, DOUBLE_TAP_SLOP_PX = 30;
 const PAIR_TIMEOUT_MS = 75000; // the laptop user gets 60 s to approve
 
+// Opened from the internet relay (https://<relay>/r/<room>/) or from the
+// laptop itself on the local network (http://<laptop>:8765/)?
+const ROOM = (/^\/r\/([A-Za-z0-9_-]{22})\/$/.exec(location.pathname) || [])[1] || null;
+// Each laptop (room) keeps its own pairing and settings on this phone.
+const PREFIX = 'phoneRemote.' + (ROOM ? ROOM + '.' : '');
+
 const store = {
   get(key, fallback) {
-    try { const v = localStorage.getItem('phoneRemote.' + key); return v === null ? fallback : JSON.parse(v); }
+    try { const v = localStorage.getItem(PREFIX + key); return v === null ? fallback : JSON.parse(v); }
     catch (e) { return fallback; }
   },
   set(key, value) {
-    try { localStorage.setItem('phoneRemote.' + key, JSON.stringify(value)); } catch (e) {}
+    try { localStorage.setItem(PREFIX + key, JSON.stringify(value)); } catch (e) {}
   },
 };
 
@@ -42,12 +48,78 @@ function showOverlay(title, text, code, canRetry) {
 function hideOverlay() { overlay.classList.remove('show'); }
 retryBtn.addEventListener('click', () => { buzz(); connect(); });
 
-// ---------- HTTP ----------
+// ---------- Talking to the laptop: local HTTP, or WebSocket via the relay ----------
 class ApiError extends Error {
   constructor(message, code) { super(message); this.code = code; }
 }
 
-async function request(path, body, timeoutMs) {
+function request(path, body, timeoutMs) {
+  return ROOM ? relayRequest(path, body, timeoutMs) : httpRequest(path, body, timeoutMs);
+}
+
+// Over the relay all requests share one WebSocket; replies carry the request id.
+let relayWs = null, relayReady = null, relayNextId = 1;
+const relayPending = new Map();
+let laptopOnline = null;      // what the relay last said about the laptop
+
+function relaySocket() {
+  if (relayWs && relayWs.readyState <= WebSocket.OPEN) return relayReady;
+  const ws = relayWs = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/phone/' + ROOM);
+  relayReady = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { ws.close(); reject(new ApiError('Can\'t reach the internet relay. Is the phone online?', 'network')); }, 10000);
+    ws.onopen = () => { clearTimeout(timer); resolve(ws); };
+    ws.onerror = () => { clearTimeout(timer); reject(new ApiError('Can\'t reach the internet relay. Is the phone online?', 'network')); };
+  });
+  relayReady.catch(() => {});
+  ws.onmessage = e => {
+    let m;
+    try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (m.t === 'host') {                     // the laptop came online or went away
+      const was = laptopOnline;
+      laptopOnline = m.online;
+      if (!m.online && was) laptopWentOffline();
+      if (m.online && was === false) connect();
+      return;
+    }
+    const done = relayPending.get(m.i);
+    if (done) { relayPending.delete(m.i); done(m); }
+  };
+  ws.onclose = () => {
+    if (relayWs === ws) relayWs = null;
+    for (const done of relayPending.values()) done({ s: 0 });
+    relayPending.clear();
+  };
+  return relayReady;
+}
+
+const OFFLINE_TEXT = 'Phone Remote on the laptop stopped or lost its internet connection. This page reconnects by itself when it is back.';
+function laptopWentOffline() {
+  session = null;     // reconnect (and get a fresh session) once it's back
+  showOverlay('The laptop is offline', OFFLINE_TEXT, null, true);
+  setStatus('The laptop went offline', true);
+}
+
+async function relayRequest(path, body, timeoutMs) {
+  const ws = await relaySocket();
+  const i = relayNextId++;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      relayPending.delete(i);
+      reject(new ApiError('Timed out - laptop not responding', 'network'));
+    }, timeoutMs);
+    relayPending.set(i, m => {
+      clearTimeout(timer);
+      if (!m.s) return reject(new ApiError('Lost the connection to the internet relay', 'network'));
+      const data = m.b || {};
+      if (m.s >= 400) return reject(new ApiError(data.error || 'Laptop error ' + m.s, data.code));
+      resolve(data);
+    });
+    try { ws.send(JSON.stringify({ i, p: path, b: body })); }
+    catch (e) { relayPending.delete(i); clearTimeout(timer); reject(new ApiError('Lost the connection to the internet relay', 'network')); }
+  });
+}
+
+async function httpRequest(path, body, timeoutMs) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
@@ -155,7 +227,8 @@ function connect() {
       setStatus('Connected to ' + (device.host || 'laptop') + (location.protocol === 'https:' ? ' 🔒' : ''));
       if (screenOn) frameLoop();
     } catch (e) {
-      if (e.code === 'network') showOverlay('Can\'t reach the laptop', e.message, null, true);
+      if (e.code === 'offline') showOverlay('The laptop is offline', OFFLINE_TEXT, null, true);
+      else if (e.code === 'network') showOverlay('Can\'t reach the laptop', e.message, null, true);
       else showOverlay('Not connected', e.message + ' Then scan the QR code again.', null, true);
       setStatus(e.message, true);
     } finally {
@@ -207,6 +280,7 @@ async function pump() {
     else if (statusEl.classList.contains('err')) setStatus('Connected');
   } catch (e) {
     if (e.code === 'session' || e.code === 'unpaired') connect();
+    else if (e.code === 'offline') laptopWentOffline();
     else setStatus(e.message, true);
   } finally {
     inflight = false;
@@ -595,7 +669,9 @@ textEl.addEventListener('keydown', e => {
 // page visible, and arrive encrypted like everything else. Each frame says
 // where the mouse pointer is (screen captures leave it out), and we draw it.
 const FRAME_INTERVAL_MS = 250, FULL_FRAME_INTERVAL_MS = 150;
-const CURSOR_INTERVAL_MS = 30;  // the pointer is polled on its own, ~30 times a second
+// The pointer is polled on its own: ~30 times a second locally, 10 through the
+// relay, where every message counts towards its costs.
+const CURSOR_INTERVAL_MS = ROOM ? 100 : 30;
 const screenView = $('#screen-view'), screenImg = $('#screen-img'), cursorEl = $('#screen-cursor');
 const screenMsg = $('#screen-msg'), screenToggle = $('#screen-toggle'), monBtn = $('#screen-mon');
 let screenOn = !!store.get('screenOn', false);

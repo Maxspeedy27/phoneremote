@@ -46,6 +46,10 @@ def parse_args(argv):
                         help="name to put in the QR code instead of the IP address, e.g. the domain "
                              "name of --cert")
     parser.add_argument("--no-screen", action="store_true", help="don't let the phone view this screen")
+    parser.add_argument("--relay", metavar="URL",
+                        help="internet relay to connect through, so phones work from any network "
+                             "(e.g. https://relay.example.com); see relay/README.md")
+    parser.add_argument("--no-relay", action="store_true", help="local network only, no internet relay")
     parser.add_argument("--light-qr", action="store_true",
                         help="draw the QR code for a terminal with a light background")
     parser.add_argument("--forget", action="store_true", help="unpair the remembered phone before starting")
@@ -69,6 +73,15 @@ def main(argv=None):
     return run_terminal(args)
 
 
+def relay_url(args, settings=None):
+    """Which internet relay to use: --relay, else the panel's choice, else the built-in one."""
+    from .relay import DEFAULT_RELAY_URL
+
+    if args.no_relay or (settings is not None and not settings["relay"] and not args.relay):
+        return None
+    return args.relay or (settings["relay_url"] if settings is not None else "") or DEFAULT_RELAY_URL or None
+
+
 # ---------------------------------------------------------------- terminal
 
 def run_terminal(args):
@@ -89,7 +102,7 @@ def run_terminal(args):
     try:
         rt = Runtime(backend, store, approver, port=args.port, ip=args.ip,
                      https=bool(args.https or args.cert), cert=args.cert, key=args.key,
-                     hostname=args.hostname, screen=not args.no_screen)
+                     hostname=args.hostname, screen=not args.no_screen, relay_url=relay_url(args))
     except SetupError as exc:
         backend.close()
         sys.exit(str(exc))
@@ -99,11 +112,14 @@ def run_terminal(args):
         print(f"Warning: {rt.ip} is not one of this laptop's addresses.")
 
     def show_pairing(with_qr=True):
-        url = rt.pairing_url
+        url = rt.relay_pairing_url if rt.relay_online else rt.pairing_url
+        where = "any network with internet" if rt.relay_online else rt.network
         if with_qr:
-            print(f"To pair a phone, scan this QR code with its camera ({rt.network}), or open:\n")
+            print(f"To pair a phone, scan this QR code with its camera ({where}), or open:\n")
             print(f"  {url}\n")
             print_qr(url, args.light_qr)
+            if rt.relay_online:
+                print(f"Without internet, on the same Wi-Fi: {rt.pairing_url}\n")
         else:
             print(f"    To pair a different phone later, open: {url}")
 
@@ -116,10 +132,20 @@ def run_terminal(args):
             show_pairing()
 
     rt.listeners.append(on_change)
+    if rt.relay:   # give the relay a moment, so the QR code can work from any network
+        rt.relay.start()
+        import time
+        for _ in range(40):
+            if rt.relay.state != "connecting":
+                break
+            time.sleep(0.1)
+        if not rt.relay_online:
+            print(f"Internet relay unavailable ({rt.relay.error or 'not connected'}); local network only.")
 
     print(f"\nPhone Remote {__version__} is running.\n")
     if rt.pairing.device:
-        print(f"Paired phone: {rt.pairing.device.name}. On it, open {rt.base_url}")
+        home = rt.relay.phone_url if rt.relay_online else rt.base_url
+        print(f"Paired phone: {rt.pairing.device.name}. On it, open {home}")
         print("(Pairing another phone replaces it.)\n")
     show_pairing()
     if rt.self_signed:
@@ -174,12 +200,15 @@ def run_app(args):
         rt = Runtime(backend, store, panel.approve, port=args.port, ip=args.ip,
                      https=bool(args.https or args.cert or settings["https"]), cert=args.cert, key=args.key,
                      hostname=args.hostname, screen=settings["screen"] and not args.no_screen,
-                     log=panel.log)
+                     relay_url=relay_url(args, settings), log=panel.log)
     except (RuntimeError, SetupError) as exc:
         problem = f"Phone Remote can't start yet.\n\n{exc}"
         if backend is not None:
             backend.close()
     panel.runtime, panel.problem = rt, problem
+    from .relay import DEFAULT_RELAY_URL
+    panel.relay_url = args.relay or settings["relay_url"] or None
+    panel.default_relay = DEFAULT_RELAY_URL
 
     server = PanelServer(panel)
     remember_panel(panel_file, server)

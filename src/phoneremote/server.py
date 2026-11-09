@@ -41,6 +41,10 @@ def load_static():
     return {path: (web.joinpath(name).read_bytes(), ctype) for path, (name, ctype) in STATIC_FILES.items()}
 
 
+def _error_body(code, message):
+    return {"ok": False, "code": code, "error": message}
+
+
 HOST_HEADER = re.compile(r"^[A-Za-z0-9.:\[\]-]{1,255}$")
 SAFE_PATH = re.compile(r"^/[\x21-\x7e]{0,1000}$")
 
@@ -64,6 +68,62 @@ class RemoteServer(ThreadingHTTPServer):
         self.static = load_static()
         self.input_lock = threading.Lock()  # backends aren't thread-safe; serialize all input
         super().__init__(address, RemoteHandler)
+
+    # ----- the phone API, shared by HTTP requests and the internet relay -----
+
+    def handle_api(self, path, msg, client="?"):
+        """Handle one phone request; returns (HTTP status, JSON-able body)."""
+        route = {
+            "/api/pair": self._pair,
+            "/api/hello": self._hello,
+            "/api/cmd": self._command,
+            "/api/frame": self._frame,
+            "/api/cursor": self._cursor,
+        }.get(path)
+        if route is None:
+            return 404, _error_body("not-found", "Not found")
+        try:
+            return 200, route(msg, client)
+        except PairingError as exc:
+            return exc.status, _error_body(exc.code, str(exc))
+        except ScreenUnavailable as exc:
+            return 503, _error_body("screen", str(exc))
+        except ValueError as exc:
+            return 400, _error_body("bad-request", str(exc))
+        except Exception as exc:
+            return 500, _error_body("error", f"{type(exc).__name__}: {exc}")
+
+    def _pair(self, msg, client):
+        return self.pairing.pair(msg)
+
+    def _hello(self, msg, client):
+        device, reply = self.pairing.hello(msg)
+        self.log(f"{device.name} connected from {client}.")
+        return reply
+
+    def _command(self, msg, client):
+        ops = self.pairing.open_command(msg)
+        with self.input_lock:
+            run_ops(self.backend, ops, self.screen)
+        return {"ok": True}
+
+    def _cursor(self, msg, client):
+        device, request = self.pairing.open_cursor(msg)
+        if self.screen is None:
+            raise ScreenUnavailable("Screen view is turned off on the laptop.")
+        monitor = request.get("m", 1)
+        return seal(device.key, {"t": "cursor", "c": self.screen.cursor(monitor), "m": monitor})
+
+    def _frame(self, msg, client):
+        device, request = self.pairing.open_frame(msg)
+        screen = self.screen
+        if screen is None:
+            raise ScreenUnavailable("Screen view is turned off on the laptop.")
+        was_viewing = screen.viewing
+        jpeg, monitor, count, cursor = screen.grab(request.get("m", 1), request.get("w", 720))
+        if not was_viewing:
+            self.log(f"{device.name} is viewing the screen.")
+        return seal(device.key, {"t": "frame", "img": b64e(jpeg), "m": monitor, "n": count, "c": cursor})
 
     @property
     def scheme(self):
@@ -167,60 +227,9 @@ class RemoteHandler(BaseHTTPRequestHandler):
         # connection stays in sync for the next request.
         raw = self.rfile.read(length)
 
-        route = {
-            "/api/pair": self._pair,
-            "/api/hello": self._hello,
-            "/api/cmd": self._command,
-            "/api/frame": self._frame,
-            "/api/cursor": self._cursor,
-        }.get(urlsplit(self.path).path)
-        if route is None:
-            return self._error(404, "not-found", "Not found")
         try:
             msg = json.loads(raw)
         except ValueError:
             return self._error(400, "bad-request", "Body must be JSON")
-        try:
-            route(msg)
-        except PairingError as exc:
-            self._error(exc.status, exc.code, str(exc))
-        except ScreenUnavailable as exc:
-            self._error(503, "screen", str(exc))
-        except ValueError as exc:
-            self._error(400, "bad-request", str(exc))
-        except Exception as exc:
-            self._error(500, "error", f"{type(exc).__name__}: {exc}")
-
-    def _pair(self, msg):
-        self._send_json(200, self.server.pairing.pair(msg))
-
-    def _hello(self, msg):
-        device, reply = self.server.pairing.hello(msg)
-        self.server.log(f"{device.name} connected from {self.client_address[0]}.")
-        self._send_json(200, reply)
-
-    def _command(self, msg):
-        ops = self.server.pairing.open_command(msg)
-        with self.server.input_lock:
-            run_ops(self.server.backend, ops, self.server.screen)
-        self._send_json(200, {"ok": True})
-
-    def _cursor(self, msg):
-        device, request = self.server.pairing.open_cursor(msg)
-        screen = self.server.screen
-        if screen is None:
-            raise ScreenUnavailable("Screen view is turned off on the laptop.")
-        monitor = request.get("m", 1)
-        self._send_json(200, seal(device.key, {"t": "cursor", "c": screen.cursor(monitor), "m": monitor}))
-
-    def _frame(self, msg):
-        device, request = self.server.pairing.open_frame(msg)
-        screen = self.server.screen
-        if screen is None:
-            raise ScreenUnavailable("Screen view is turned off on the laptop.")
-        was_viewing = screen.viewing
-        jpeg, monitor, count, cursor = screen.grab(request.get("m", 1), request.get("w", 720))
-        if not was_viewing:
-            self.server.log(f"{device.name} is viewing the screen.")
-        self._send_json(200, seal(device.key, {"t": "frame", "img": b64e(jpeg), "m": monitor, "n": count,
-                                               "c": cursor}))
+        status, body = self.server.handle_api(urlsplit(self.path).path, msg, self.client_address[0])
+        self._send_json(status, body)

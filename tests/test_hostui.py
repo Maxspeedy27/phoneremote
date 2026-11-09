@@ -106,6 +106,30 @@ class PanelTest(unittest.TestCase):
         self.assertTrue(Settings(self.dir / "settings.json")["https"])
         self.assertEqual(self.call("address", {"ip": "203.0.113.9"})[0], 400)
 
+    def test_internet_relay_qr_and_switch(self):
+        from test_relay import FakeRelay, wait_for
+
+        fake = FakeRelay()
+        self.addCleanup(fake.close)
+        self.panel.relay_url = fake.url
+        with mock.patch("phoneremote.runtime.config_dir", return_value=self.dir):
+            self.rt.set_relay(fake.url)
+            self.rt.start()
+            self.addCleanup(self.rt.close)
+            self.assertTrue(wait_for(lambda: self.call("state")[1]["relay"]["state"] == "online"))
+            relay_state = self.call("state")[1]["relay"]
+            self.assertTrue(relay_state["url"].startswith(f"{fake.url}/r/{self.rt.relay.room}/#k="))
+            self.assertIn("<svg", relay_state["qr"])
+            # Both codes carry the same one-time pairing key.
+            self.assertEqual(relay_state["url"].split("#")[1], self.call("state")[1]["url"].split("#")[1])
+            self.call("relay", {"on": False})
+            state = self.call("state")[1]["relay"]
+            self.assertEqual((state["enabled"], state["state"], state["url"]), (False, "off", None))
+            self.assertFalse(Settings(self.dir / "settings.json")["relay"])
+            self.call("relay", {"on": True})
+            self.assertTrue(wait_for(lambda: self.call("state")[1]["relay"]["state"] == "online"))
+        self.assertTrue((self.dir / "relay.json").exists())   # the room secret, kept for next time
+
     def test_second_launch_finds_the_running_app(self):
         path = self.dir / "panel.json"
         self.assertIsNone(hostui.existing_panel(path))

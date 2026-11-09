@@ -49,6 +49,8 @@ class Panel:
         self.settings = settings
         self.version = version
         self.problem = problem
+        self.relay_url = None           # the relay in use (--relay or saved), for switching back on
+        self.default_relay = ""
         self.token = secrets.token_urlsafe(24)
         self.url = None                 # set once the panel server is listening
         self.quit = threading.Event()
@@ -56,7 +58,7 @@ class Panel:
         self._pending = None            # dict while a phone waits for approval
         self._lock = threading.Lock()
         self._last_poll = 0.0
-        self._qr = (None, None)         # (url, svg) cache
+        self._qr = {}                   # url -> svg, for the current URLs only
 
     # ----- activity log -----
 
@@ -95,13 +97,14 @@ class Panel:
 
     # ----- state for the page -----
 
-    def _qr_for(self, url):
-        if self._qr[0] != url:
+    def _qr_for(self, url, keep):
+        if url and url not in self._qr:
             try:
-                self._qr = (url, qr_svg(url))
+                self._qr[url] = qr_svg(url)
             except Exception:
-                self._qr = (url, None)
-        return self._qr[1]
+                self._qr[url] = None
+        self._qr = {u: svg for u, svg in self._qr.items() if u in keep}
+        return self._qr.get(url)
 
     def state(self):
         self._last_poll = time.monotonic()
@@ -114,10 +117,21 @@ class Panel:
         with self._lock:
             pending = self._pending
         url = rt.pairing_url
+        relay = rt.relay
+        relay_url = rt.relay_pairing_url if rt.relay_online else None
+        keep = {url, relay_url}
         state.update({
             "url": url,
             "base": rt.base_url,
-            "qr": self._qr_for(url),
+            "qr": self._qr_for(url, keep),
+            "relay": {
+                "available": bool(relay is not None or self.default_relay),
+                "enabled": relay is not None,
+                "state": relay.state if relay else "off",
+                "url": relay_url,
+                "home": relay.phone_url if relay else None,
+                "qr": self._qr_for(relay_url, keep) if relay_url else None,
+            },
             "addresses": [{"ip": ip, "kind": kind} for ip, kind in rt.addresses],
             "ip": rt.ip,
             "network": rt.network,
@@ -168,6 +182,12 @@ class Panel:
                 self.settings["https"] = on
                 self.log("HTTPS " + ("on: the phone needs to scan the new QR code once." if on else "off."))
             return {"ok": ok, "error": rt.https_problem}
+        if action == "relay":
+            on = body.get("on") is True
+            self.settings["relay"] = on
+            rt.set_relay((self.relay_url or self.default_relay) if on else None)
+            self.log("Internet connection " + ("on: connecting to the relay." if on else "off: local network only."))
+            return {"ok": True}
         if action == "address":
             rt.refresh_addresses()
             rt.set_ip(body.get("ip"))
