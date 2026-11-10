@@ -130,6 +130,9 @@ def run_terminal(args):
         elif reason == "refused":
             print("    That QR code is no longer valid. New one:\n")
             show_pairing()
+        elif reason == "address":
+            print("    New QR code:\n")
+            show_pairing()
 
     rt.listeners.append(on_change)
     if rt.relay:   # give the relay a moment, so the QR code can work from any network
@@ -169,12 +172,25 @@ def run_terminal(args):
         print("Warning: this is a Wayland session; pyautogui only works under X11. Try --backend uinput.")
     print("Press Ctrl+C to stop.\n")
 
+    stop_on_sigterm()
     try:
         rt.serve_forever()
     except KeyboardInterrupt:
         print("\nStopping.")
     finally:
         rt.close()
+
+
+def stop_on_sigterm():
+    """Treat a polite kill (logout, shutdown, `kill`) like Ctrl+C, so cleanup runs
+    and a privately blanked projector is lit again."""
+    import signal
+
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt
+
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, interrupt)
 
 
 # ---------------------------------------------------------------- desktop app
@@ -219,6 +235,7 @@ def run_app(args):
         panel.log(f"Started. Phones can connect at {rt.base_url}")
     print(f"Kumpas {__version__}: control panel at {panel.url}")
     webbrowser.open(panel.url)
+    stop_on_sigterm()
     try:
         panel.quit.wait()
     except KeyboardInterrupt:

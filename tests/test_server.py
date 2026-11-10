@@ -108,6 +108,24 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(len(self.backend.calls), 2)
         self.assertIn("Test phone connected", self.logs[0])
 
+    def test_black_screen_reply_tells_the_phone_the_projector_state(self):
+        import tempfile
+        from pathlib import Path
+        from kumpas.blanker import Blanker
+        from test_blanker import FakeGamma
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.server.blanker = Blanker(gamma=FakeGamma([(1, "HDMI-1")]), state_file=Path(tmp.name) / "s.json")
+        self.addCleanup(self.server.blanker.close)
+        phone = self.paired_phone()
+        status, reply = self.post("/api/cmd", phone.command([{"a": "key", "k": "blank"}]))
+        self.assertEqual((status, reply), (200, {"ok": True, "blank": "black"}))
+        status, reply = self.post("/api/cmd", phone.command([{"a": "key", "k": "next"}]))
+        self.assertEqual(reply, {"ok": True, "blank": "black"})   # still dark while changing slides
+        status, reply = self.post("/api/cmd", phone.command([{"a": "key", "k": "blank"}]))
+        self.assertEqual(reply, {"ok": True, "blank": None})
+        self.assertEqual(self.backend.calls, [("hotkey", "right")])
+
     def test_replay_over_http_rejected(self):
         phone = self.paired_phone()
         msg = phone.command([{"a": "key", "k": "next"}])

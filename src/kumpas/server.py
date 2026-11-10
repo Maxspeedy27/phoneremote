@@ -59,8 +59,9 @@ class RemoteServer(ThreadingHTTPServer):
 
     daemon_threads = True
 
-    def __init__(self, address, backend, pairing, screen=None, ssl_context=None, log=print):
+    def __init__(self, address, backend, pairing, screen=None, ssl_context=None, log=print, blanker=None):
         self.backend = backend
+        self.blanker = blanker
         self.pairing = pairing
         self.screen = screen
         self.ssl_context = ssl_context
@@ -104,7 +105,9 @@ class RemoteServer(ThreadingHTTPServer):
     def _command(self, msg, client):
         ops = self.pairing.open_command(msg)
         with self.input_lock:
-            run_ops(self.backend, ops, self.screen)
+            run_ops(self.backend, ops, self.screen, self.blanker)
+        if self.blanker is not None and self.blanker.available:
+            return {"ok": True, "blank": self.blanker.mode}
         return {"ok": True}
 
     def _cursor(self, msg, client):

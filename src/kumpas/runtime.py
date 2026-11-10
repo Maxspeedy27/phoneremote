@@ -8,6 +8,7 @@ import json
 import socket
 import threading
 
+from .blanker import Blanker
 from .netinfo import BLUETOOTH, HOTSPOT, USB, phone_addresses
 from .pairing import Pairing
 from .screen import ScreenGrabber
@@ -46,6 +47,8 @@ class Settings:
 
 
 class Runtime:
+    NETWORK_CHECK_SECONDS = 3   # how often to notice the laptop joining another network
+
     def __init__(self, backend, store, approver, port=8765, ip=None, https=False,
                  cert=None, key=None, hostname=None, screen=True, relay_url=None, log=print):
         self.backend = backend
@@ -58,10 +61,14 @@ class Runtime:
         self.addresses = phone_addresses()
         self.ip, self.kind = self.addresses[0]
         self.unknown_ip = False
+        self.fixed_ip = bool(ip)      # --ip: always use that address
+        self.picked_ip = False        # chosen in the panel: keep it while the laptop has it
         if ip:
             self.ip, self.kind = ip, dict(self.addresses).get(ip)
             self.unknown_ip = self.kind is None and ip not in dict(self.addresses)
+        self._stopping = threading.Event()
         self.screen = ScreenGrabber(enabled=screen)
+        self.blanker = Blanker()
         self.pairing = Pairing(store, approver, host=socket.gethostname(),
                                on_key_changed=self._key_changed)
         self.server = self._open_server(port)
@@ -76,7 +83,7 @@ class Runtime:
         for candidate in range(port, port + 20):
             try:
                 return RemoteServer(("0.0.0.0", candidate), self.backend, self.pairing,
-                                    screen=self.screen, log=self.log)
+                                    screen=self.screen, log=self.log, blanker=self.blanker)
             except OSError as exc:
                 last_error = exc
         raise SetupError(f"Could not open a port between {port} and {port + 19}: {last_error}")
@@ -134,10 +141,49 @@ class Runtime:
         if ip not in known:
             raise ValueError("not one of this laptop's addresses")
         self.ip, self.kind = ip, known[ip]
+        self.picked_ip = True
         self._changed()
 
     def refresh_addresses(self):
         self.addresses = phone_addresses()
+
+    def check_network(self):
+        """Look again at this laptop's addresses, e.g. after it joined a phone's
+        hotspot. Moves the pairing URL to the best address unless one was chosen
+        (and the laptop still has it). Returns True when the URL's address changed."""
+        addresses = phone_addresses()
+        if addresses == self.addresses:
+            return False
+        self.addresses = addresses
+        known = dict(addresses)
+        if self.fixed_ip:
+            self.kind = known.get(self.ip)
+            return False
+        if self.picked_ip and self.ip in known:
+            self.kind = known[self.ip]
+            return False
+        self.picked_ip = False
+        ip, kind = addresses[0]
+        if ip == self.ip:
+            self.kind = kind
+            return False
+        self.ip, self.kind = ip, kind
+        if self.self_signed:
+            self.set_https(True)   # a certificate that names the new address
+        if not self.hostname:
+            self.log(f"The laptop's network changed. Phones can now connect at {self.base_url}")
+        self._changed("address")
+        return True
+
+    def _watch_network(self):
+        while not self._stopping.wait(self.NETWORK_CHECK_SECONDS):
+            try:
+                self.check_network()
+            except Exception:
+                pass
+
+    def _start_watching(self):
+        threading.Thread(target=self._watch_network, daemon=True).start()
 
     # ----- HTTPS -----
 
@@ -195,16 +241,20 @@ class Runtime:
         """Serve phones on a background thread."""
         self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self._thread.start()
+        self._start_watching()
         if self.relay:
             self.relay.start()
 
     def serve_forever(self):
         self._serving = True
+        self._start_watching()
         if self.relay:
             self.relay.start()
         self.server.serve_forever()
 
     def close(self):
+        self._stopping.set()
+        self.blanker.close()   # never leave the projector dark
         if self.relay:
             self.relay.stop()
         if self._thread:

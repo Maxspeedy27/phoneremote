@@ -287,9 +287,10 @@ async function pump() {
   try {
     const msg = seal(deviceKey, { t: 'cmd', s: session, q: ++seq, ops });
     msg.d = device.id;
-    await request('/api/cmd', msg, 4000);
+    const reply = await request('/api/cmd', msg, 4000);
     if (label) setStatus(label);
     else if (statusEl.classList.contains('err')) setStatus('Connected');
+    if (reply && 'blank' in reply) showBlank(reply.blank);
     setLinked();
   } catch (e) {
     if (e.code === 'session' || e.code === 'unpaired') connect();
@@ -325,6 +326,23 @@ $$('[data-key]').forEach(b => b.addEventListener('click', () => {
   buzz();
   send({ a: 'key', k: b.dataset.key }, b.dataset.label || b.textContent.trim());
 }));
+
+// Private black/white screen: the laptop blanks the projector itself, so this
+// phone's screen view stays live and slides can change unseen.
+let blankMode = null;
+function showBlank(mode) {
+  const changed = mode !== blankMode;
+  blankMode = mode;
+  [['blank', 'black'], ['white', 'white']].forEach(([key, m]) => {
+    const b = $(`[data-key="${key}"]`);
+    b.classList.toggle('on', mode === m);
+    b.setAttribute('aria-pressed', String(mode === m));
+  });
+  const badge = $('#blank-badge');
+  badge.hidden = !mode;
+  if (mode) badge.textContent = `Projector ${mode} \u00b7 only you see this`;
+  if (changed) setStatus(mode ? `Projector ${mode} - change slides unseen` : 'Projector showing again');
+}
 
 const holdBtn = $('#hold');
 let holding = false;

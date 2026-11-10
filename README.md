@@ -16,6 +16,11 @@ or Bluetooth tethering.
   screen, First/Last, and go to a slide by number (PowerPoint, Keynote,
   Impress, Google Slides). A pointer strip moves the laptop's cursor so you can
   point at the projected slide without changing slides.
+- **Private black/white screen:** on Linux (X11), Black and White blank the
+  projector (or the laptop screen, when no projector is connected) without
+  blanking the phone's screen view, so you can move to another slide or topic
+  unseen and then reveal it. Tap the button again to show the screen. Elsewhere
+  they press B/W in the slideshow app as before.
 - **Talk timer:** counts up, or set a talk length and it counts down. The
   phone vibrates silently at 5 minutes left, 1 minute left and time up (on
   phones that support vibration, i.e. not iPhones), the clock turns amber then

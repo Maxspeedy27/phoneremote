@@ -17,7 +17,10 @@ def _fraction(value):
     return max(0.0, min(1.0, float(_number(value, 1))))
 
 
-def run_op(backend, op, screen=None):
+BLANK_KEYS = {"blank": "black", "white": "white"}
+
+
+def run_op(backend, op, screen=None, blanker=None):
     if not isinstance(op, dict):
         raise ValueError("bad operation")
     action = op.get("a")
@@ -45,6 +48,9 @@ def run_op(backend, op, screen=None):
         backend.mouse_down()
     elif action == "up":
         backend.mouse_up()
+    elif action == "key" and op.get("k") in BLANK_KEYS and blanker is not None and blanker.available:
+        # Blank the projector ourselves, so the phone's screen view stays live.
+        blanker.toggle(BLANK_KEYS[op["k"]])
     elif action == "key":
         combo = SHORTCUTS.get(op.get("k"))
         if combo is None:
@@ -60,8 +66,8 @@ def run_op(backend, op, screen=None):
         raise ValueError("unknown action")
 
 
-def run_ops(backend, ops, screen=None):
+def run_ops(backend, ops, screen=None, blanker=None):
     if not isinstance(ops, list) or len(ops) > MAX_OPS:
         raise ValueError("ops must be a list")
     for op in ops:
-        run_op(backend, op, screen)
+        run_op(backend, op, screen, blanker)

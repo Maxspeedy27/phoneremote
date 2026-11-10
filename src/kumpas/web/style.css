@@ -256,6 +256,10 @@ form button { min-height: 52px; padding: 0 20px; }
 #screen-msg { position: absolute; margin: 0; padding: 10px 14px; max-width: 90%; text-align: center;
   font-size: 13px; color: var(--text); background: rgba(11, 13, 18, .85); border-radius: 10px; }
 #screen-msg:empty { display: none; }
+#blank-badge { position: absolute; top: 8px; left: 8px; margin: 0; padding: 4px 10px; z-index: 2; font-size: 12px;
+  font-weight: 600; color: #fff; background: var(--danger); border-radius: 999px; pointer-events: none; }
+#blank-badge[hidden] { display: none; }
+.tiles button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .screen-btn { position: absolute; min-height: 36px; padding: 0 12px; font-size: 13px; gap: 6px;
   background: rgba(20, 24, 33, .85); border: 1px solid rgba(255, 255, 255, .12); border-radius: 999px; z-index: 2;
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }

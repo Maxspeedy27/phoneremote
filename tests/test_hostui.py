@@ -159,5 +159,66 @@ class AppEntryTest(unittest.TestCase):
         self.assertEqual(self.run_entry(["--https"], tty=False), ["--https"])
 
 
+class NetworkChangeTest(unittest.TestCase):
+    """The laptop joins another network (e.g. a phone's hotspot) while running."""
+
+    WIFI = [("192.168.10.39", "")]
+    HOTSPOT = [("172.20.10.11", "iPhone hotspot")]
+
+    def make(self, start, **kwargs):
+        logs = []
+        with mock.patch("kumpas.runtime.phone_addresses", return_value=start):
+            rt = Runtime(FakeBackend(), temp_store(self), lambda *a: True, port=0,
+                         log=logs.append, **kwargs)
+        self.addCleanup(rt.server.server_close)
+        changes = []
+        rt.listeners.append(changes.append)
+        return rt, logs, changes
+
+    def check(self, rt, addresses):
+        with mock.patch("kumpas.runtime.phone_addresses", return_value=addresses):
+            return rt.check_network()
+
+    def test_qr_code_follows_the_laptop_to_a_hotspot(self):
+        rt, logs, changes = self.make(self.WIFI)
+        self.assertTrue(self.check(rt, self.HOTSPOT))
+        self.assertEqual((rt.ip, rt.kind), ("172.20.10.11", "iPhone hotspot"))
+        self.assertIn("172.20.10.11", rt.pairing_url)
+        self.assertEqual(rt.network, "on the same hotspot")
+        self.assertIn("address", changes)
+        self.assertIn("172.20.10.11", logs[-1])
+
+    def test_nothing_happens_when_the_network_is_the_same(self):
+        rt, logs, changes = self.make(self.WIFI)
+        self.assertFalse(self.check(rt, list(self.WIFI)))
+        self.assertEqual((changes, logs), ([], []))
+
+    def test_address_picked_in_the_panel_is_kept_while_present(self):
+        rt, _, _ = self.make(self.WIFI + [("10.0.0.5", "")])
+        rt.set_ip("10.0.0.5")
+        self.assertFalse(self.check(rt, self.HOTSPOT + [("10.0.0.5", "")]))
+        self.assertEqual(rt.ip, "10.0.0.5")
+        self.assertTrue(self.check(rt, self.HOTSPOT))   # gone: follow the best one
+        self.assertEqual(rt.ip, "172.20.10.11")
+
+    def test_ip_from_the_command_line_never_changes(self):
+        rt, _, _ = self.make(self.WIFI, ip="192.168.10.39")
+        self.assertFalse(self.check(rt, self.HOTSPOT))
+        self.assertEqual(rt.ip, "192.168.10.39")
+        self.assertEqual(rt.addresses, self.HOTSPOT)   # but the list offered is current
+
+    def test_watcher_stops_when_closed(self):
+        rt, _, changes = self.make(self.WIFI)
+        rt.NETWORK_CHECK_SECONDS = 0.01
+        with mock.patch("kumpas.runtime.phone_addresses", return_value=self.HOTSPOT):
+            rt.start()
+            deadline = time.monotonic() + 5
+            while rt.ip != "172.20.10.11" and time.monotonic() < deadline:
+                time.sleep(0.01)
+            rt.close()
+        self.assertEqual(rt.ip, "172.20.10.11")
+        self.assertTrue(rt._stopping.is_set())
+
+
 if __name__ == "__main__":
     unittest.main()
