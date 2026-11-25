@@ -3,6 +3,8 @@
 *Kumpas* (Filipino): the hand gesture a conductor uses to lead the music.
 (Formerly called Phone Remote.)
 
+**[Website](https://maxspeedy27.github.io/phoneremote/)** · **[Download](https://github.com/Maxspeedy27/phoneremote/releases/latest)** (Windows, macOS, Linux) · [Privacy policy](https://maxspeedy27.github.io/phoneremote/privacy.html) · [Code signing policy](https://maxspeedy27.github.io/phoneremote/code-signing.html)
+
 Use your phone's browser as a remote control for your laptop: next/back for
 slides, a touchpad, scrolling, zoom and typing. Nothing to install on the
 phone. The laptop runs a small local server; the phone scans a QR code.
@@ -318,6 +320,15 @@ specifically requested by the user or the person installing or operating it.
   view open, and go only to that phone, encrypted.
 
 The same policy is on the website (`website/privacy.html`).
+
+## Code signing policy
+
+Installers are built only by GitHub Actions from this repository's source, for
+a tagged release; nothing built on a personal computer is published. They are
+not code-signed yet: Windows and macOS warn on first launch (see
+[Building the installers](#building-the-installers)). The full policy, the
+team and what each installer changes on the system are on the
+[code signing policy page](https://maxspeedy27.github.io/phoneremote/code-signing.html).
 
 ## License
 
