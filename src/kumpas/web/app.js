@@ -191,7 +191,7 @@ async function pair() {
   pairingKey = null;  // single-use whatever happens
   const msg = seal(key, { t: 'pair', name: phoneName() });
   const code = pairingCode(msg);
-  showOverlay('Approve on the laptop', 'Type y in the laptop\'s Kumpas window if it shows this same code.', code);
+  showOverlay('Approve on the laptop', 'Allow it on the laptop only if the laptop shows this same code.', code);
   setStatus('Waiting for approval on the laptop…');
   const reply = unseal(key, await request('/api/pair', msg, PAIR_TIMEOUT_MS));
   device = { id: reply.id, key: reply.key, host: reply.host };
