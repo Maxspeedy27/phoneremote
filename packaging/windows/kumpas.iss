@@ -33,6 +33,7 @@ Name: "startup"; Description: "Start Kumpas when I sign in"; GroupDescription: "
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Kumpas"; Filename: "{app}\Kumpas.exe"

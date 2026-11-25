@@ -26,7 +26,7 @@ else:
 a = Analysis(
     [str(ROOT / "packaging" / "entry.py")],
     pathex=[str(ROOT / "src")],
-    datas=[(str(WEB), "kumpas/web")],
+    datas=[(str(WEB), "kumpas/web"), (str(ROOT / "LICENSE"), ".")],
     hiddenimports=hidden,
     # tkinter is only used by pyautogui's optional message boxes and mouse-info
     # helper, which Kumpas never calls.
@@ -62,6 +62,6 @@ if IS_MAC:
             # No windows of its own (the control panel opens in the browser),
             # so stay out of the Dock; open the app again to show the panel.
             "LSUIElement": True,
-            "NSHumanReadableCopyright": "Kumpas",
+            "NSHumanReadableCopyright": "Copyright © 2026 Macley Domingo. Free software under the GNU GPL v3 or later.",
         },
     )

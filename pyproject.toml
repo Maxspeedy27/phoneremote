@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "kumpas"
 version = "0.3.0"
 description = "Use your phone's browser as a remote control for your laptop - slides, touchpad and keyboard."
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "src/kumpas/web/vendor/LICENSE-tweetnacl.txt"]
 requires-python = ">=3.9"
 dependencies = [
     "pynacl>=1.5",

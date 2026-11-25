@@ -296,3 +296,17 @@ like `v0.3.0`. Build the Linux package on the oldest distro you support
 
 Third-party code: `web/vendor/nacl-fast.min.js` is tweetnacl-js 1.0.3
 (public domain, see `LICENSE-tweetnacl.txt`).
+
+## License
+
+Copyright © 2026 Macley Domingo.
+
+Kumpas is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; see [`LICENSE`](LICENSE) for the full terms.
+
+The license covers the code. The name "Kumpas" and the K logo are not
+licensed for use by modified versions: a fork that you distribute needs its
+own name and icon.

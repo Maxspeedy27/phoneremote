@@ -60,6 +60,7 @@ def build_deb():
         (PACKAGING / "linux" / "kumpas.desktop", "usr/share/applications/kumpas.desktop"),
         (PACKAGING / "icons" / "kumpas.png", "usr/share/icons/hicolor/512x512/apps/kumpas.png"),
         (PACKAGING / "linux" / "60-kumpas-uinput.rules", "usr/lib/udev/rules.d/60-kumpas-uinput.rules"),
+        (ROOT / "LICENSE", "usr/share/doc/kumpas/copyright"),
     ]:
         target = stage / dest
         target.parent.mkdir(parents=True, exist_ok=True)
