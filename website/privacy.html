@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · Kumpas</title>
+<meta name="description" content="What Kumpas sends over the network, and what it doesn't: no accounts, no analytics, nothing leaves your local network unless you turn on the internet relay.">
+<meta name="theme-color" content="#0b0d12">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="index.html" aria-label="Kumpas home">
+      <img src="icon.svg" width="32" height="32" alt="">
+      <span>Kumpas</span>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#security">Security</a>
+      <a href="index.html#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="index.html#download">
+      <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Download
+    </a>
+  </div>
+</header>
+
+<main id="main" class="wrap legal">
+  <p class="kicker">Privacy</p>
+  <h1>Privacy policy</h1>
+  <p class="updated">Last updated 25 November 2026</p>
+
+  <p class="callout">This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.</p>
+
+  <h2>The Kumpas app</h2>
+  <p>Kumpas has no accounts, analytics, telemetry, ads or automatic update checks. It doesn't send anything to us.</p>
+  <ul>
+    <li><strong>Local connections</strong> (same Wi-Fi, phone hotspot, USB cable, Bluetooth) go straight from your phone to your laptop and never touch the internet.</li>
+    <li><strong>Pairing</strong> details (the paired phone's name and keys) and your settings are stored only on your laptop, in Kumpas's settings folder. The phone keeps its half of the pairing in its own browser storage.</li>
+    <li><strong>Screen pictures</strong> are taken only while your paired phone has the screen view open. They go only to that phone, encrypted, and are never saved.</li>
+  </ul>
+
+  <h2>The internet relay</h2>
+  <p>The relay lets your phone reach your laptop when they're on different networks. It is <strong>off until you turn it on</strong> (the <em>Connect over the internet</em> switch in the Kumpas control panel, or <code>--relay</code> in the terminal).</p>
+  <ul>
+    <li>Everything your phone and laptop send through it is end-to-end encrypted with a key that never reaches the relay, so it can't read your commands, typing or screen pictures.</li>
+    <li>The relay doesn't store messages or keep logs of its own. Like any server, it does see your laptop's and phone's IP addresses, when they connect and how much data they send.</li>
+    <li>The relay runs on Cloudflare, which keeps its own request logs as described in <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a>.</li>
+    <li>If you run your own relay (<code>--relay URL</code>), it is under your control and we see nothing.</li>
+  </ul>
+
+  <h2>This website</h2>
+  <p>This website has no cookies, analytics or tracking. Its fonts are loaded from Google Fonts, so your browser contacts Google's servers when you open it (see <a href="https://policies.google.com/privacy">Google's privacy policy</a>). The server that hosts the site may keep standard access logs, such as IP address, page and time.</p>
+  <p>Downloads come from GitHub Releases, under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>.</p>
+
+  <h2>Questions and changes</h2>
+  <p>Kumpas is open source, so you can check all of this in the <a href="https://github.com/Maxspeedy27/phoneremote">source code</a>. Questions go to the project's <a href="https://github.com/Maxspeedy27/phoneremote/issues">GitHub issues</a>. If this policy changes, the date at the top changes too, and the change is visible in the project's history.</p>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <a class="brand" href="index.html"><img src="icon.svg" width="24" height="24" alt=""><span>Kumpas</span></a>
+    <nav aria-label="Footer">
+      <a href="index.html#download">Download</a>
+      <a href="privacy.html" aria-current="page">Privacy</a>
+      <a href="code-signing.html">Code signing policy</a>
+      <a href="https://github.com/Maxspeedy27/phoneremote">Source code</a>
+    </nav>
+    <p>&copy; 2026 Macley Domingo &middot; GPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

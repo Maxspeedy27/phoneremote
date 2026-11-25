@@ -85,6 +85,10 @@ Description: Control your laptop from your phone's browser
  Slides, touchpad, keyboard, media keys, a talk timer and a live view of the
  screen, from any phone browser: nothing to install on the phone. Pairing is
  approved on the laptop and every command is encrypted.
+ .
+ System changes: installs a udev rule that lets the logged-in user send
+ keyboard and mouse input through /dev/uinput (needed on Wayland), and
+ loads the uinput kernel module. Removing the package removes the rule.
 """, encoding="utf-8")
     for script in ("postinst", "postrm"):
         shutil.copy(PACKAGING / "linux" / script, debian / script)

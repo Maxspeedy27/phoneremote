@@ -104,7 +104,9 @@ remembered phone), `--no-confirm` (skip the approval prompt; less secure).
   a different Wi-Fi, or venue Wi-Fi that keeps devices apart. The page comes
   from the relay over real HTTPS, and everything stays end-to-end encrypted.
   If the laptop goes offline, the phone says so and reconnects by itself.
-  Turn it off in the panel's settings (or `--no-relay`) for local-only use.
+  It is off until you turn on **Connect over the internet** in the panel's
+  settings (or pass `--relay` in the terminal); until then nothing leaves the
+  local network.
 - **Same Wi-Fi:** the **Same Wi-Fi / no internet** code connects directly,
   with no internet needed.
 - **No internet at all:** link the phone and laptop directly, then use the
@@ -296,6 +298,26 @@ like `v0.3.0`. Build the Linux package on the oldest distro you support
 
 Third-party code: `web/vendor/nacl-fast.min.js` is tweetnacl-js 1.0.3
 (public domain, see `LICENSE-tweetnacl.txt`).
+
+## Privacy
+
+Kumpas has no accounts, analytics, telemetry or update checks. This program
+will not transfer any information to other networked systems unless
+specifically requested by the user or the person installing or operating it.
+
+- **Local connections** (same Wi-Fi, hotspot, USB, Bluetooth) go straight
+  from the phone to the laptop and never touch the internet.
+- **The internet relay** is used only after you turn it on. It passes along
+  end-to-end encrypted messages it can't read and stores nothing, but like
+  any server it sees the laptop's and the phone's IP addresses, when they
+  connect and how much they send. The relay runs on Cloudflare, which keeps
+  its own request logs under [Cloudflare's privacy
+  policy](https://www.cloudflare.com/privacypolicy/). A relay you deploy
+  yourself (`--relay URL`) is under your control instead.
+- **Screen pictures** are taken only while the paired phone has the screen
+  view open, and go only to that phone, encrypted.
+
+The same policy is on the website (`website/privacy.html`).
 
 ## License
 

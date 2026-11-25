@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code signing policy · Kumpas</title>
+<meta name="description" content="How Kumpas installers are built and signed, and who can approve a signed release.">
+<meta name="theme-color" content="#0b0d12">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="index.html" aria-label="Kumpas home">
+      <img src="icon.svg" width="32" height="32" alt="">
+      <span>Kumpas</span>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#security">Security</a>
+      <a href="index.html#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="index.html#download">
+      <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Download
+    </a>
+  </div>
+</header>
+
+<main id="main" class="wrap legal">
+  <p class="kicker">Trust</p>
+  <h1>Code signing policy</h1>
+  <p class="updated">Last updated 25 November 2026</p>
+
+  <!-- When SignPath Foundation accepts the project, replace this callout with:
+       <p class="callout">Free code signing provided by <a href="https://signpath.io">SignPath.io</a>,
+       certificate by <a href="https://signpath.org">SignPath Foundation</a>.</p> -->
+  <p class="callout">Kumpas installers are not code-signed yet, so Windows and macOS show a warning the first time you open them. We plan to apply for free code signing for Windows from the <a href="https://signpath.org">SignPath Foundation</a>.</p>
+
+  <h2>What gets signed</h2>
+  <ul>
+    <li>Only installers built automatically by <a href="https://github.com/Maxspeedy27/phoneremote/actions">GitHub Actions</a> from the public <a href="https://github.com/Maxspeedy27/phoneremote">source code</a>, for a tagged release. The build scripts are part of that source code.</li>
+    <li>Nothing built on a personal computer is ever signed.</li>
+    <li>Every signed release is approved by hand by a member of the team below.</li>
+    <li>Signed files carry the product name Kumpas and the release's version number.</li>
+  </ul>
+
+  <h2>Team</h2>
+  <dl>
+    <dt>Committers and reviewers</dt>
+    <dd><a href="https://github.com/Maxspeedy27">Macley Domingo</a></dd>
+    <dt>Approvers</dt>
+    <dd><a href="https://github.com/Maxspeedy27">Macley Domingo</a></dd>
+  </dl>
+  <p>Changes from people outside the team come in as pull requests and are reviewed by a team member before they're merged.</p>
+
+  <h2>Privacy</h2>
+  <p>This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. The details are in the <a href="privacy.html">privacy policy</a>.</p>
+
+  <h2>What the installers change</h2>
+  <ul>
+    <li><strong>Windows:</strong> an optional Windows Firewall rule (a checkbox, on by default) so phones on home and work networks can connect; public networks stay blocked. Starting with Windows is a separate checkbox, off by default. The uninstaller removes both.</li>
+    <li><strong>Linux (.deb):</strong> a udev rule that lets the logged-in user send keyboard and mouse input through <code>/dev/uinput</code>, needed on Wayland. Removing the package removes it.</li>
+    <li><strong>macOS:</strong> nothing outside the app. macOS asks you to allow Accessibility (and Screen Recording for the screen view).</li>
+  </ul>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <a class="brand" href="index.html"><img src="icon.svg" width="24" height="24" alt=""><span>Kumpas</span></a>
+    <nav aria-label="Footer">
+      <a href="index.html#download">Download</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="code-signing.html" aria-current="page">Code signing policy</a>
+      <a href="https://github.com/Maxspeedy27/phoneremote">Source code</a>
+    </nav>
+    <p>&copy; 2026 Macley Domingo &middot; GPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

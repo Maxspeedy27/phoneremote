@@ -46,9 +46,10 @@ def parse_args(argv):
                         help="name to put in the QR code instead of the IP address, e.g. the domain "
                              "name of --cert")
     parser.add_argument("--no-screen", action="store_true", help="don't let the phone view this screen")
-    parser.add_argument("--relay", metavar="URL",
-                        help="internet relay to connect through, so phones work from any network "
-                             "(e.g. https://relay.example.com); see relay/README.md")
+    parser.add_argument("--relay", metavar="URL", nargs="?", const="",
+                        help="connect through an internet relay, so phones work from any network: the "
+                             "built-in one, or the relay at URL (e.g. https://relay.example.com); "
+                             "see relay/README.md. Off unless given")
     parser.add_argument("--no-relay", action="store_true", help="local network only, no internet relay")
     parser.add_argument("--light-qr", action="store_true",
                         help="draw the QR code for a terminal with a light background")
@@ -74,12 +75,16 @@ def main(argv=None):
 
 
 def relay_url(args, settings=None):
-    """Which internet relay to use: --relay, else the panel's choice, else the built-in one."""
+    """Which internet relay to use, or None. The relay is opt-in: --relay [URL] in the
+    terminal, or the panel's switch; the URL is --relay's, else the panel's, else the built-in one."""
     from .relay import DEFAULT_RELAY_URL
 
-    if args.no_relay or (settings is not None and not settings["relay"] and not args.relay):
+    if args.no_relay:
         return None
-    return args.relay or (settings["relay_url"] if settings is not None else "") or DEFAULT_RELAY_URL or None
+    if args.relay is None and not (settings is not None and settings["relay"]):
+        return None
+    saved = settings["relay_url"] if settings is not None else ""
+    return args.relay or saved or DEFAULT_RELAY_URL or None
 
 
 # ---------------------------------------------------------------- terminal

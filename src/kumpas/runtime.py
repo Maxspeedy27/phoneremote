@@ -23,7 +23,8 @@ class SetupError(Exception):
 class Settings:
     """Small JSON file of choices made in the control panel."""
 
-    DEFAULTS = {"https": False, "screen": True, "relay": True, "relay_url": ""}
+    # The relay is off until the user turns it on: with it off, nothing leaves the local network.
+    DEFAULTS = {"https": False, "screen": True, "relay": False, "relay_url": ""}
 
     def __init__(self, path):
         self.path = path

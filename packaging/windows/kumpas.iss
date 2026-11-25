@@ -24,10 +24,12 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
-; Administrator rights are needed to add the firewall rule that lets phones connect.
+; Administrator rights are needed for the optional firewall rule that lets phones connect.
 PrivilegesRequired=admin
 
 [Tasks]
+; System changes are shown as choices here (SignPath's "announce system changes" rule).
+Name: "firewall"; Description: "Let phones on home and work Wi-Fi connect (adds a Windows Firewall rule for Kumpas; public networks stay blocked)"; GroupDescription: "Windows Firewall:"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "startup"; Description: "Start Kumpas when I sign in"; GroupDescription: "Other:"; Flags: unchecked
 
@@ -41,10 +43,11 @@ Name: "{autodesktop}\Kumpas"; Filename: "{app}\Kumpas.exe"; Tasks: desktopicon
 Name: "{userstartup}\Kumpas"; Filename: "{app}\Kumpas.exe"; Tasks: startup
 
 [Run]
-; Allow phones on private (home/work) networks to reach the app, so users never
-; see a firewall prompt. Public networks (cafes, hotels) stay blocked.
+; With the "firewall" task, phones on private (home/work) networks can reach the app
+; without a firewall prompt. Public networks (cafes, hotels) stay blocked. Any rule from
+; an earlier install is removed first, so unticking the task on an update takes it away.
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Kumpas"""; Flags: runhidden
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Kumpas"" dir=in action=allow program=""{app}\Kumpas.exe"" enable=yes profile=private"; Flags: runhidden
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Kumpas"" dir=in action=allow program=""{app}\Kumpas.exe"" enable=yes profile=private"; Flags: runhidden; Tasks: firewall
 Filename: "{app}\Kumpas.exe"; Description: "Start Kumpas now"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
